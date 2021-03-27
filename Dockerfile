@@ -1,4 +1,4 @@
-FROM golang:1.15
+FROM golang:1.15 AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,13 @@ RUN go get $(grep -zo 'require (\(.*\))' go.mod | sed '1d;$d;' | tr ' ' '@')
 
 COPY . .
 
-RUN make install
+# https://stackoverflow.com/a/62123648
+RUN CGO_ENABLED=0 make
 
-ENTRYPOINT ["/app/build/rmqhttp"]
-CMD "server"
+
+FROM alpine AS runner
+
+COPY --from=builder /app/build/rmqhttp /usr/bin/rmqhttp
+
+ENTRYPOINT ["/usr/bin/rmqhttp"]
+CMD ["server"]

@@ -31,29 +31,22 @@ func HttpHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	q, err := rmq.Channel.QueueDeclare(
-		queueName,
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-
+	queue, err := rmq.PrepareQueue(queueName)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	body, err := ioutil.ReadAll(r.Body)
-
 	if err != nil {
 		log.Fatal(err)
 	}
-	var payload rmqPayload
-	err = json.Unmarshal(body, &payload)
 
-	if err != nil {
-		log.Fatal(err)
+	var payload rmqPayload
+	if err := json.Unmarshal(body, &payload); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Header()["Content-Type"] = []string{"application/json"}
+		w.Write(NewJsonError("BadRequest", "Invalid JSON").Json())
+		return
 	}
 
 	log.Debugf("Publishing to queue: %s; %d byte payload of: %s destined for: %s",
@@ -61,7 +54,7 @@ func HttpHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = rmq.Channel.Publish(
 		"",
-		q.Name,
+		queue.Name,
 		false,
 		false,
 		amqp.Publishing{

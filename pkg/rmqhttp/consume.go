@@ -16,20 +16,13 @@ func ConsumeQueue(queueName string) {
 		log.Fatal(err)
 	}
 
-	q, err := rmq.Channel.QueueDeclare(
-		queueName,
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
+	queue, err := rmq.PrepareQueue(queueName)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	msgs, err := rmq.Channel.Consume(
-		q.Name,
+		queue.Name,
 		"",
 		false,
 		false,
@@ -43,6 +36,8 @@ func ConsumeQueue(queueName string) {
 
 	forever := make(chan bool)
 
+	// Presently only allows for one retry.
+	// Will have to build a re-queuing mechanism for proper retry count.
 	go func() {
 		for d := range msgs {
 			log.Printf("Received a message: %s", d.Body)
@@ -51,13 +46,13 @@ func ConsumeQueue(queueName string) {
 			err := json.Unmarshal(d.Body, &payload)
 			if err != nil {
 				log.Error(err)
-				d.Nack(false, false)
+				d.Nack(false, !d.Redelivered)
 				continue
 			}
 			resp, err := http.Post(payload.Endpoint, payload.ContentType, strings.NewReader(payload.Content))
 			if err != nil {
 				log.Error(err)
-				d.Nack(false, false)
+				d.Nack(false, !d.Redelivered)
 				continue
 			}
 
@@ -67,7 +62,7 @@ func ConsumeQueue(queueName string) {
 
 			if resp.StatusCode < 200 || resp.StatusCode > 299 {
 				log.Error(err)
-				d.Nack(false, false)
+				d.Nack(false, !d.Redelivered)
 				continue
 			}
 

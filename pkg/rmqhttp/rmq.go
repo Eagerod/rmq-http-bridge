@@ -1,6 +1,10 @@
 package rmqhttp
 
 import (
+	"fmt"
+)
+
+import (
 	"github.com/streadway/amqp"
 )
 
@@ -35,4 +39,36 @@ func (rmq *RMQ) ConnectRMQ(connectionString string) error {
 	}
 
 	return nil
+}
+
+// Create the queue we need, and make sure it has a dead letter queue set up.
+// This could eventually take in specific configurations that workers/server
+//   set up.
+func (rmq *RMQ) PrepareQueue(queueName string) (*amqp.Queue, error) {
+	if rmq.Channel == nil {
+		return nil, fmt.Errorf("Cannot validate queue. RMQ not connected.")
+	}
+
+	dlxName := fmt.Sprintf("%s-dead-letter-exchange", queueName)
+	dlqName := fmt.Sprintf("%s-dead-letter-queue", queueName)
+
+	if err := rmq.Channel.ExchangeDeclare(dlxName, "fanout", true, false, false, false, nil); err != nil {
+		return nil, err
+	}
+
+	if _, err := rmq.Channel.QueueDeclare(dlqName, true, false, false, false, nil); err != nil {
+		return nil, err
+	}
+
+	if err := rmq.Channel.QueueBind(dlqName, "", dlxName, false, nil); err != nil {
+		return nil, err
+	}
+
+	args := amqp.Table{"x-dead-letter-exchange": dlxName}
+	queue, err := rmq.Channel.QueueDeclare(queueName, true, false, false, false, args)
+	if err != nil {
+		return nil, err
+	}
+
+	return &queue, nil
 }

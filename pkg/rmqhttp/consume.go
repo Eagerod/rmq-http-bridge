@@ -1,7 +1,9 @@
 package rmqhttp
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -49,7 +51,13 @@ func ConsumeQueue(queueName string) {
 				d.Nack(false, !d.Redelivered)
 				continue
 			}
-			resp, err := http.Post(payload.Endpoint, payload.ContentType, strings.NewReader(payload.Content))
+
+			var httpBodyReader io.Reader = strings.NewReader(payload.Content)
+			if payload.Base64Decode {
+				httpBodyReader = base64.NewDecoder(base64.StdEncoding, httpBodyReader)
+			}
+
+			resp, err := http.Post(payload.Endpoint, payload.ContentType, httpBodyReader)
 			if err != nil {
 				log.Error(err)
 				d.Nack(false, !d.Redelivered)

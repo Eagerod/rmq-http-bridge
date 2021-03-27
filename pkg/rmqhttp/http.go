@@ -14,6 +14,12 @@ import (
 
 var rmq RMQ
 
+func respondError(w http.ResponseWriter, statusCode int, message string) {
+	w.WriteHeader(statusCode)
+	w.Header()["Content-Type"] = []string{"application/json"}
+	w.Write(NewJsonError(http.StatusText(statusCode), message).Json())
+}
+
 func HttpHandler(w http.ResponseWriter, r *http.Request) {
 	// I don't know; other validation too?
 	queueName := r.URL.Path[1:]
@@ -21,9 +27,7 @@ func HttpHandler(w http.ResponseWriter, r *http.Request) {
 	// The router should be handling this, so this is kind of silly.
 	pathComponents := strings.Split(queueName, "/")
 	if len(pathComponents) != 1 {
-		w.WriteHeader(http.StatusNotFound)
-		w.Header()["Content-Type"] = []string{"application/json"}
-		w.Write(NewJsonError("NotFound", "Queue name not valid").Json())
+		respondError(w, http.StatusNotFound, "Queue name not valid")
 		return
 	}
 
@@ -43,9 +47,12 @@ func HttpHandler(w http.ResponseWriter, r *http.Request) {
 
 	var payload rmqPayload
 	if err := json.Unmarshal(body, &payload); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Header()["Content-Type"] = []string{"application/json"}
-		w.Write(NewJsonError("BadRequest", "Invalid JSON").Json())
+		respondError(w, http.StatusBadRequest, "Invalid JSON")
+		return
+	}
+
+	if payload.Endpoint == "" {
+		respondError(w, http.StatusBadRequest, "No endpoint given")
 		return
 	}
 

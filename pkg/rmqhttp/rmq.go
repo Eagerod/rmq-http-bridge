@@ -8,10 +8,18 @@ import (
 	"github.com/streadway/amqp"
 )
 
+// Desribes the primary payload of the system.
+//
+// Endpoint:     URL where the content will be sent.
+// ContentType:  Value of HTTP content type header to send.
+// Content:      Payload to send in HTTP request.
+// Base64Decode: Whether or not the service needs to decode the given content
+//               before sending it.
 type rmqPayload struct {
-	Endpoint    string
-	ContentType string
-	Content     string
+	Endpoint     string
+	ContentType  string
+	Content      string
+	Base64Decode bool
 }
 
 type RMQ struct {

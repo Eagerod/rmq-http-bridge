@@ -12,11 +12,6 @@ import (
 	"github.com/streadway/amqp"
 )
 
-type JsonError struct {
-	Error   string
-	Message string
-}
-
 func HttpHandler(w http.ResponseWriter, r *http.Request) {
 	// I don't know; other validation too.
 	queueName := r.URL.Path[1:]
@@ -26,12 +21,7 @@ func HttpHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		w.Header()["Content-Type"] = []string{"application/json"}
 
-		j, e := json.Marshal(JsonError{Error: "NotFound", Message: "Queue name not valid"})
-
-		if e != nil {
-			log.Fatal(e)
-		}
-		w.Write(j)
+		w.Write(NewJsonError("NotFound", "Queue name not valid").Json())
 		return
 	}
 	conn, err := amqp.Dial("amqp://guest:guest@rabbitmq:5672/")

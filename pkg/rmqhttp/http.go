@@ -12,31 +12,26 @@ import (
 	"github.com/streadway/amqp"
 )
 
+var rmq RMQ
+
 func HttpHandler(w http.ResponseWriter, r *http.Request) {
-	// I don't know; other validation too.
+	// I don't know; other validation too?
 	queueName := r.URL.Path[1:]
 
+	// The router should be handling this, so this is kind of silly.
 	pathComponents := strings.Split(queueName, "/")
 	if len(pathComponents) != 1 {
 		w.WriteHeader(http.StatusNotFound)
 		w.Header()["Content-Type"] = []string{"application/json"}
-
 		w.Write(NewJsonError("NotFound", "Queue name not valid").Json())
 		return
 	}
-	conn, err := amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
-	if err != nil {
+
+	if err := rmq.ConnectRMQ("amqp://guest:guest@rabbitmq:5672/"); err != nil {
 		log.Fatal(err)
 	}
-	defer conn.Close()
 
-	ch, err := conn.Channel()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer ch.Close()
-
-	q, err := ch.QueueDeclare(
+	q, err := rmq.Channel.QueueDeclare(
 		queueName,
 		false,
 		false,
@@ -64,7 +59,7 @@ func HttpHandler(w http.ResponseWriter, r *http.Request) {
 	log.Debugf("Publishing to queue: %s; %d byte payload of: %s destined for: %s",
 		queueName, len(payload.Content), payload.ContentType, payload.Endpoint)
 
-	err = ch.Publish(
+	err = rmq.Channel.Publish(
 		"",
 		q.Name,
 		false,

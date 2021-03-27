@@ -9,23 +9,14 @@ import (
 
 import (
 	log "github.com/sirupsen/logrus"
-	"github.com/streadway/amqp"
 )
 
 func ConsumeQueue(queueName string) {
-	conn, err := amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
-	if err != nil {
+	if err := rmq.ConnectRMQ("amqp://guest:guest@rabbitmq:5672/"); err != nil {
 		log.Fatal(err)
 	}
-	defer conn.Close()
 
-	ch, err := conn.Channel()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer ch.Close()
-
-	q, err := ch.QueueDeclare(
+	q, err := rmq.Channel.QueueDeclare(
 		queueName,
 		false,
 		false,
@@ -37,7 +28,7 @@ func ConsumeQueue(queueName string) {
 		log.Fatal(err)
 	}
 
-	msgs, err := ch.Consume(
+	msgs, err := rmq.Channel.Consume(
 		q.Name,
 		"",
 		false,
@@ -84,6 +75,6 @@ func ConsumeQueue(queueName string) {
 		}
 	}()
 
-	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
+	log.Infof("Waiting for messages from queue. To exit press CTRL+C")
 	<-forever
 }

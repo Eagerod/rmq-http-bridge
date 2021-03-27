@@ -1,6 +1,10 @@
 package rmqhttp
 
 import (
+	"fmt"
+)
+
+import (
 	"github.com/spf13/cobra"
 )
 
@@ -9,14 +13,22 @@ import (
 )
 
 func mkConsumeCmd() *cobra.Command {
-	var consumeCmd = &cobra.Command{
+	var queueName string
+
+	var cmd = &cobra.Command{
 		Use:   "worker",
 		Short: "Pulls items off a RMQ queue, and sends them to their HTTP destination.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			rmqhttp.ConsumeQueue("test")
+			if queueName == "" {
+				return fmt.Errorf("Must provide queue name to consume")
+			}
+
+			rmqhttp.ConsumeQueue(queueName)
 			return nil
 		},
 	}
 
-	return consumeCmd
+	cmd.Flags().StringVarP(&queueName, "queue", "q", "", "Queue to consume")
+
+	return cmd
 }

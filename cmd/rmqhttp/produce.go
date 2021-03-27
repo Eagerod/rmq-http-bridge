@@ -1,7 +1,6 @@
 package rmqhttp
 
 import (
-	// "errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -18,9 +17,7 @@ import (
 )
 
 func mkProduceCmd() *cobra.Command {
-	// var produceCmdTagSlice *[]string
-
-	var produceCmd = &cobra.Command{
+	var cmd = &cobra.Command{
 		Use:   "server",
 		Short: "Receives HTTP POSTs on / and sends them to a queue.",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -28,7 +25,7 @@ func mkProduceCmd() *cobra.Command {
 			if port == "" {
 				port = "8080"
 			}
-			log.Infof("Starting RMQ bridge on port %s", port)
+			log.Infof("Starting RMQ HTTP Bridge on port %s", port)
 
 			bindInterface := fmt.Sprintf("0.0.0.0:%s", port)
 
@@ -39,7 +36,5 @@ func mkProduceCmd() *cobra.Command {
 		},
 	}
 
-	// produceCmdTagSlice = removeCmd.Flags().StringArrayP("tag", "t", []string{}, "remove resources with this tag")
-
-	return produceCmd
+	return cmd
 }

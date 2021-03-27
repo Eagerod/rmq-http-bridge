@@ -13,7 +13,7 @@ import (
 )
 
 type JsonError struct {
-	Error string
+	Error   string
 	Message string
 }
 
@@ -27,12 +27,12 @@ func HttpHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header()["Content-Type"] = []string{"application/json"}
 
 		j, e := json.Marshal(JsonError{Error: "NotFound", Message: "Queue name not valid"})
-		
+
 		if e != nil {
 			log.Fatal(e)
 		}
 		w.Write(j)
-		return 
+		return
 	}
 	conn, err := amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
 	if err != nil {
@@ -47,14 +47,14 @@ func HttpHandler(w http.ResponseWriter, r *http.Request) {
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		queueName, 
-		false,  
-		false,   
-		false,   
-		false,   
+		queueName,
+		false,
+		false,
+		false,
+		false,
 		nil,
 	)
-	  
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -75,13 +75,13 @@ func HttpHandler(w http.ResponseWriter, r *http.Request) {
 		queueName, len(payload.Content), payload.ContentType, payload.Endpoint)
 
 	err = ch.Publish(
-		"",    
-		q.Name, 
-		false,  
-		false, 
-		amqp.Publishing {
+		"",
+		q.Name,
+		false,
+		false,
+		amqp.Publishing{
 			ContentType: "application/json",
-			Body: body,
+			Body:        body,
 		},
 	)
 

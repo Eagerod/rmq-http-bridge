@@ -1,7 +1,7 @@
 package rmqhttp
 
 type rmqPayload struct {
-	Endpoint string
+	Endpoint    string
 	ContentType string
-	Content string
+	Content     string
 }

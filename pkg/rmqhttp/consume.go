@@ -42,13 +42,12 @@ func ConsumeQueue(queueName string) {
 	// Will have to build a re-queuing mechanism for proper retry count.
 	go func() {
 		for d := range msgs {
-			log.Printf("Received a message: %s", d.Body)
-
 			var payload rmqPayload
-			err := json.Unmarshal(d.Body, &payload)
-			if err != nil {
+			if err := json.Unmarshal(d.Body, &payload); err != nil {
+				// This is unrecoverable; don't even obey the retry count.
+				// Ship this straight to the DLQ.
 				log.Error(err)
-				d.Nack(false, !d.Redelivered)
+				d.Nack(false, false)
 				continue
 			}
 
@@ -59,18 +58,17 @@ func ConsumeQueue(queueName string) {
 
 			resp, err := http.Post(payload.Endpoint, payload.ContentType, httpBodyReader)
 			if err != nil {
-				log.Error(err)
-				d.Nack(false, !d.Redelivered)
+				log.Warn(err)
+				RequeueOrNack(&rmq, queue, &d)
 				continue
 			}
 
 			body, _ := ioutil.ReadAll(resp.Body)
 
-			log.Debugf("HTTP %d from %s\n%s", resp.StatusCode, payload.Endpoint, body)
+			log.Debugf("HTTP %d from %s\n  %s", resp.StatusCode, payload.Endpoint, body)
 
 			if resp.StatusCode < 200 || resp.StatusCode > 299 {
-				log.Error(err)
-				d.Nack(false, !d.Redelivered)
+				RequeueOrNack(&rmq, queue, &d)
 				continue
 			}
 

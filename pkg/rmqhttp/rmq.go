@@ -5,6 +5,7 @@ import (
 )
 
 import (
+	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
@@ -15,12 +16,17 @@ import (
 // Content:      Payload to send in HTTP request.
 // Base64Decode: Whether or not the service needs to decode the given content
 //               before sending it.
+// Retries       Number of retries before pushing to the DLX.
+//				 Defaults to 2; maximum 9.
 type rmqPayload struct {
 	Endpoint     string
 	ContentType  string
 	Content      string
 	Base64Decode bool
+	Retries      int
 }
+
+const retriesHeaderName string = "x-remaining-retries"
 
 type RMQ struct {
 	Connection *amqp.Connection
@@ -79,4 +85,51 @@ func (rmq *RMQ) PrepareQueue(queueName string) (*amqp.Queue, error) {
 	}
 
 	return &queue, nil
+}
+
+func RequeueOrNack(rmq *RMQ, queue *amqp.Queue, delivery *amqp.Delivery) {
+	retries, ok := delivery.Headers[retriesHeaderName]
+	if !ok {
+		// I guess assume that the retries have been exhausted?
+		log.Warn("Retries header not found")
+		delivery.Nack(false, false)
+		return
+	}
+
+	retriesInt, err := ToInt(retries)
+	if err != nil {
+		log.Error(err)
+		delivery.Nack(false, false)
+		return
+	}
+
+	if retriesInt <= 0 {
+		log.Info("Message failed final retry. Sending to DLX.")
+		delivery.Nack(false, false)
+		return
+	}
+
+	delivery.Headers[retriesHeaderName] = retriesInt - 1
+
+	// Publish this message back to the queue and Ack the one with the current
+	//   retry count.
+	err = rmq.Channel.Publish(
+		"",
+		queue.Name,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: delivery.ContentType,
+			Body:        delivery.Body,
+			Headers:     delivery.Headers,
+		},
+	)
+	if err != nil {
+		// Nack and requeue I guess? It will end up getting an extra retry,
+		//   but better than DLQing it right away?
+		log.Warn("Failed message failed to decrement retries")
+		delivery.Nack(false, true)
+	} else {
+		delivery.Ack(false)
+	}
 }

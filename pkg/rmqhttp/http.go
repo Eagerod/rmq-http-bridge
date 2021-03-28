@@ -27,7 +27,7 @@ func HttpHandler(w http.ResponseWriter, r *http.Request) {
 	// The router should be handling this, so this is kind of silly.
 	pathComponents := strings.Split(queueName, "/")
 	if len(pathComponents) != 1 {
-		respondError(w, http.StatusNotFound, "Queue name not valid")
+		respondError(w, http.StatusBadRequest, "Queue name not valid")
 		return
 	}
 
@@ -45,7 +45,7 @@ func HttpHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 	}
 
-	var payload rmqPayload
+	payload := rmqPayload{Retries: 2}
 	if err := json.Unmarshal(body, &payload); err != nil {
 		respondError(w, http.StatusBadRequest, "Invalid JSON")
 		return
@@ -56,9 +56,18 @@ func HttpHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if payload.Retries < 0 || payload.Retries > 9 {
+		respondError(w, http.StatusBadRequest, "Retries not within (0, 9)")
+		return
+	}
+
 	log.Debugf("Publishing to queue: %s; %d byte payload of: %s destined for: %s",
 		queueName, len(payload.Content), payload.ContentType, payload.Endpoint)
 
+	// Note: Retries stays in the body.
+	// There may eventually be a need to rewrite the body; it cane omitted if
+	//    that ever happens.
+	headers := amqp.Table{retriesHeaderName: payload.Retries}
 	err = rmq.Channel.Publish(
 		"",
 		queue.Name,
@@ -67,6 +76,7 @@ func HttpHandler(w http.ResponseWriter, r *http.Request) {
 		amqp.Publishing{
 			ContentType: "application/json",
 			Body:        body,
+			Headers:     headers,
 		},
 	)
 

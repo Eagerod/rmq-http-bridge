@@ -35,7 +35,7 @@ type RMQ struct {
 
 func (rmq *RMQ) ConnectRMQ(connectionString string) error {
 	if rmq.Connection == nil {
-		conn, err := amqp.Dial("amqp://guest:guest@rabbitmq:5672/")
+		conn, err := amqp.Dial(connectionString)
 		if err != nil {
 			return err
 		}

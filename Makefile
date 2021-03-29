@@ -55,11 +55,11 @@ $(INSTALLED_NAME): $(BIN_NAME)
 	cp $(BIN_NAME) $(INSTALLED_NAME)
 
 .PHONY: test
-test: $(SRC)
+test:
 	@if [ -z $$T ]; then \
-		$(GO) test -v $(PACKAGE_PATHS); \
+		$(GO) test -v ./...; \
 	else \
-		$(GO) test -v $(PACKAGE_PATHS) -run $$T; \
+		$(GO) test -v ./... -run $$T; \
 	fi
 
 .PHONY: interface-test
@@ -71,7 +71,7 @@ interface-test: $(BIN_NAME)
 	fi
 
 .PHONY: test-cover
-test-cover: $(SRC)
+test-cover:
 	$(GO) test -v --coverprofile=coverage.out $(PACKAGE_PATHS)
 
 .PHONY: coverage

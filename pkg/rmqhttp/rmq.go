@@ -2,6 +2,7 @@ package rmqhttp
 
 import (
 	"fmt"
+	"math"
 )
 
 import (
@@ -27,6 +28,7 @@ type rmqPayload struct {
 }
 
 const retriesHeaderName string = "x-remaining-retries"
+const attemptsHeaderName string = "x-attempt-number"
 
 type RMQ struct {
 	Connection *amqp.Connection
@@ -65,6 +67,7 @@ func (rmq *RMQ) PrepareQueue(queueName string) (*amqp.Queue, error) {
 
 	dlxName := fmt.Sprintf("%s-dead-letter-exchange", queueName)
 	dlqName := fmt.Sprintf("%s-dead-letter-queue", queueName)
+	delayxName := fmt.Sprintf("%s-delay-delivery", queueName)
 
 	if err := rmq.Channel.ExchangeDeclare(dlxName, "fanout", true, false, false, false, nil); err != nil {
 		return nil, err
@@ -84,6 +87,21 @@ func (rmq *RMQ) PrepareQueue(queueName string) (*amqp.Queue, error) {
 		return nil, err
 	}
 
+	// Because of how the delaying infrastructure works, create an exchange
+	//   for the queue, and bind the exchange to the delivery exchange.
+	if err := rmq.Channel.ExchangeDeclare(delayxName, "fanout", true, false, false, false, nil); err != nil {
+		return nil, err
+	}
+
+	routingKey := fmt.Sprintf("#.%s", queueName)
+	if err := rmq.Channel.ExchangeBind(delayxName, routingKey, DelayInfrastructureDeliveryExchange, false, nil); err != nil {
+		return nil, err
+	}
+
+	if err := rmq.Channel.QueueBind(queueName, "", delayxName, false, nil); err != nil {
+		return nil, err
+	}
+
 	return &queue, nil
 }
 
@@ -96,7 +114,19 @@ func RequeueOrNack(rmq *RMQ, queue *amqp.Queue, delivery *amqp.Delivery) {
 		return
 	}
 
+	attempts, ok := delivery.Headers[attemptsHeaderName]
+	if !ok {
+		attempts = 0
+	}
+
 	retriesInt, err := ToInt(retries)
+	if err != nil {
+		log.Error(err)
+		delivery.Nack(false, false)
+		return
+	}
+
+	attemptsInt, err := ToInt(attempts)
 	if err != nil {
 		log.Error(err)
 		delivery.Nack(false, false)
@@ -110,12 +140,13 @@ func RequeueOrNack(rmq *RMQ, queue *amqp.Queue, delivery *amqp.Delivery) {
 	}
 
 	delivery.Headers[retriesHeaderName] = retriesInt - 1
+	delivery.Headers[attemptsHeaderName] = attemptsInt + 1
 
 	// Publish this message back to the queue and Ack the one with the current
 	//   retry count.
 	err = rmq.Channel.Publish(
-		"",
-		queue.Name,
+		DelayRoutingExchange(),
+		DelayRoutingKey(queue.Name, int64(math.Pow(2, float64(attemptsInt)))),
 		false,
 		false,
 		amqp.Publishing{

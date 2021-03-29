@@ -16,6 +16,8 @@ var rootCmd = &cobra.Command{
 func Execute() {
 	rootCmd.AddCommand(mkProduceCmd())
 	rootCmd.AddCommand(mkConsumeCmd())
+	rootCmd.AddCommand(mkInitCmd())
+	rootCmd.AddCommand(mkDestroyCmd())
 
 	log.SetLevel(log.DebugLevel)
 

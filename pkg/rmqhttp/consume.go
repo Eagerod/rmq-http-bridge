@@ -64,8 +64,11 @@ func ConsumeQueue(queueName string) {
 			}
 
 			body, _ := ioutil.ReadAll(resp.Body)
-
-			log.Debugf("HTTP %d from %s\n  %s", resp.StatusCode, payload.Endpoint, body)
+			if body == nil || len(body) == 0 {
+				log.Debugf("HTTP %d from %s", resp.StatusCode, payload.Endpoint)
+			} else {
+				log.Debugf("HTTP %d from %s\n  %s", resp.StatusCode, payload.Endpoint, body)
+			}
 
 			if resp.StatusCode < 200 || resp.StatusCode > 299 {
 				RequeueOrNack(&rmq, queue, &d)

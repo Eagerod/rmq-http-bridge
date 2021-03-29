@@ -29,7 +29,15 @@ func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
 		httpBodyReader = base64.NewDecoder(base64.StdEncoding, httpBodyReader)
 	}
 
-	resp, err := http.Post(payload.Endpoint, payload.ContentType, httpBodyReader)
+	client := &http.Client{}
+	req, _ := http.NewRequest("POST", payload.Endpoint, nil)
+	req.Body = ioutil.NopCloser(httpBodyReader)
+
+	for key, value := range payload.Headers {
+		req.Header.Add(key, value)
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		log.Warn(err)
 		RequeueOrNack(rmq, queue, &delivery)

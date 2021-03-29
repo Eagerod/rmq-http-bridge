@@ -61,8 +61,8 @@ func HttpHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Debugf("Publishing to queue: %s; %d byte payload of: %s destined for: %s",
-		queueName, len(payload.Content), payload.ContentType, payload.Endpoint)
+	log.Debugf("Publishing to queue: %s; %d byte payload to: %s",
+		queueName, len(payload.Content), payload.Endpoint)
 
 	// Note: Retries stays in the body.
 	// There may eventually be a need to rewrite the body; it cane omitted if

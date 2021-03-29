@@ -62,6 +62,7 @@ func ConsumeQueue(queueName string) {
 				RequeueOrNack(&rmq, queue, &d)
 				continue
 			}
+			defer resp.Body.Close()
 
 			body, _ := ioutil.ReadAll(resp.Body)
 			if body == nil || len(body) == 0 {

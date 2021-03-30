@@ -60,8 +60,8 @@ func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
 	delivery.Ack(false)
 }
 
-func ConsumeQueue(queueName string) {
-	if err := rmq.ConnectRMQ("amqp://guest:guest@rabbitmq:5672/"); err != nil {
+func ConsumeQueue(connectionString, queueName string) {
+	if err := rmq.ConnectRMQ(connectionString); err != nil {
 		log.Fatal(err)
 	}
 

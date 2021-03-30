@@ -13,7 +13,8 @@ func mkDestroyCmd() *cobra.Command {
 		Use:   "destroy",
 		Short: "Destroy the delay infrastructure",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return rmqhttp.DestroyInfrastructure()
+			connectionString := getConnectionString()
+			return rmqhttp.DestroyInfrastructure(connectionString)
 		},
 	}
 

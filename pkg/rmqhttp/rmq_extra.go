@@ -61,8 +61,8 @@ func MissRoutingKey(index, bitCount int) string {
 	return key
 }
 
-func DestroyInfrastructure() error {
-	if err := rmq.ConnectRMQ("amqp://guest:guest@rabbitmq:5672/"); err != nil {
+func DestroyInfrastructure(connectionString string) error {
+	if err := rmq.ConnectRMQ(connectionString); err != nil {
 		return err
 	}
 
@@ -79,8 +79,8 @@ func DestroyInfrastructure() error {
 	return nil
 }
 
-func DelayInfrastructure() error {
-	if err := rmq.ConnectRMQ("amqp://guest:guest@rabbitmq:5672/"); err != nil {
+func DelayInfrastructure(connectionString string) error {
+	if err := rmq.ConnectRMQ(connectionString); err != nil {
 		return err
 	}
 

@@ -23,7 +23,8 @@ func mkConsumeCmd() *cobra.Command {
 				return fmt.Errorf("Must provide queue name to consume")
 			}
 
-			rmqhttp.ConsumeQueue(queueName)
+			connectionString := getConnectionString()
+			rmqhttp.ConsumeQueue(connectionString, queueName)
 			return nil
 		},
 	}

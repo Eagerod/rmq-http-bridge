@@ -13,7 +13,8 @@ func mkInitCmd() *cobra.Command {
 		Use:   "init",
 		Short: "Create the delay infrastructure",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return rmqhttp.DelayInfrastructure()
+			connectionString := getConnectionString()
+			return rmqhttp.DelayInfrastructure(connectionString)
 		},
 	}
 

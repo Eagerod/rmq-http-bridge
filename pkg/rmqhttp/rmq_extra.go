@@ -64,6 +64,7 @@ func MissRoutingKey(index, bitCount int) string {
 }
 
 func DestroyInfrastructure(connectionString string) error {
+	rmq := NewRMQ()
 	if err := rmq.ConnectRMQ(connectionString); err != nil {
 		return err
 	}
@@ -82,6 +83,7 @@ func DestroyInfrastructure(connectionString string) error {
 }
 
 func DelayInfrastructure(connectionString string) error {
+	rmq := NewRMQ()
 	if err := rmq.ConnectRMQ(connectionString); err != nil {
 		return err
 	}

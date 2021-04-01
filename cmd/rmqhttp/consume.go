@@ -14,6 +14,7 @@ import (
 
 func mkConsumeCmd() *cobra.Command {
 	var queueName string
+	var consumers int
 
 	var cmd = &cobra.Command{
 		Use:   "worker",
@@ -24,12 +25,13 @@ func mkConsumeCmd() *cobra.Command {
 			}
 
 			connectionString := getConnectionString()
-			rmqhttp.ConsumeQueue(connectionString, queueName)
+			rmqhttp.ConsumeQueue(connectionString, queueName, consumers)
 			return nil
 		},
 	}
 
 	cmd.Flags().StringVarP(&queueName, "queue", "q", "", "Queue to consume")
+	cmd.Flags().IntVarP(&consumers, "consumers", "c", 1, "Number of consumers to run")
 
 	return cmd
 }

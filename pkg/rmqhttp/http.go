@@ -5,14 +5,13 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
-
-var rmq RMQ
 
 func respondError(w http.ResponseWriter, statusCode int, message string) {
 	w.WriteHeader(statusCode)
@@ -21,6 +20,10 @@ func respondError(w http.ResponseWriter, statusCode int, message string) {
 }
 
 func HttpHandler(connectionString string) func(w http.ResponseWriter, r *http.Request) {
+	// Will have to re-evaluate if this ever gets more endpoints.
+	rmq := NewRMQ()
+	chanLock := sync.Mutex{}
+
 	return func(w http.ResponseWriter, r *http.Request) {
 		// I don't know; other validation too?
 		queueName := r.URL.Path[1:]
@@ -66,9 +69,11 @@ func HttpHandler(connectionString string) func(w http.ResponseWriter, r *http.Re
 			queueName, len(payload.Content), payload.Endpoint)
 
 		// Note: Retries stays in the body.
-		// There may eventually be a need to rewrite the body; it cane omitted if
-		//    that ever happens.
+		// There may eventually be a need to rewrite the body; it can be
+		//   omitted if that ever happens.
 		headers := amqp.Table{retriesHeaderName: payload.Retries}
+		chanLock.Lock()
+		defer chanLock.Unlock()
 		err = rmq.Channel.Publish(
 			"",
 			queue.Name,

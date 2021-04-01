@@ -60,38 +60,42 @@ func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
 	delivery.Ack(false)
 }
 
-func ConsumeQueue(connectionString, queueName string) {
-	if err := rmq.ConnectRMQ(connectionString); err != nil {
-		log.Fatal(err)
-	}
-
-	queue, err := rmq.PrepareQueue(queueName)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	msgs, err := rmq.Channel.Consume(
-		queue.Name,
-		"",
-		false,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+func ConsumeQueue(connectionString, queueName string, consumers int) {
 	forever := make(chan bool)
-
-	// Presently only allows for one retry.
-	// Will have to build a re-queuing mechanism for proper retry count.
-	go func() {
-		for d := range msgs {
-			ConsumeOne(&rmq, d, queue)
+	
+	for i := 0; i < consumers; i++ {
+		rmq := NewRMQ()
+		
+		if err := rmq.ConnectRMQ(connectionString); err != nil {
+			log.Fatal(err)
 		}
-	}()
+
+		queue, err := rmq.PrepareQueue(queueName)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		msgs, err := rmq.Channel.Consume(
+			queue.Name,
+			"",
+			false,
+			false,
+			false,
+			false,
+			nil,
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Infof("Starting consumer for queue %s", queue.Name)
+
+		go func() {
+			for delivery := range msgs {
+				ConsumeOne(rmq, delivery, queue)
+			}
+		}()
+	}
 
 	log.Infof("Waiting for messages from queue. To exit press CTRL+C")
 	<-forever

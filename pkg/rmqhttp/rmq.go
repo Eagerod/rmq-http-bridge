@@ -35,6 +35,12 @@ const attemptsHeaderName string = "x-attempt-number"
 type RMQ struct {
 	Connection *amqp.Connection
 	Channel    *amqp.Channel
+	QueueCache map[string]*amqp.Queue
+}
+
+func NewRMQ() *RMQ {
+	rmq := RMQ{nil, nil, make(map[string]*amqp.Queue)}
+	return &rmq
 }
 
 func (rmq *RMQ) ConnectRMQ(connectionString string) error {
@@ -65,6 +71,10 @@ func (rmq *RMQ) ConnectRMQ(connectionString string) error {
 func (rmq *RMQ) PrepareQueue(queueName string) (*amqp.Queue, error) {
 	if rmq.Channel == nil {
 		return nil, fmt.Errorf("Cannot validate queue. RMQ not connected.")
+	}
+
+	if queue, ok := rmq.QueueCache[queueName]; ok {
+		return queue, nil
 	}
 
 	dlxName := fmt.Sprintf("%s-dead-letter-exchange", queueName)
@@ -103,6 +113,8 @@ func (rmq *RMQ) PrepareQueue(queueName string) (*amqp.Queue, error) {
 	if err := rmq.Channel.QueueBind(queueName, "", delayxName, false, nil); err != nil {
 		return nil, err
 	}
+
+	rmq.QueueCache[queue.Name] = &queue
 
 	return &queue, nil
 }

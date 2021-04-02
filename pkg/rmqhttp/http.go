@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"sync"
 )
 
@@ -19,31 +18,21 @@ func respondError(w http.ResponseWriter, statusCode int, message string) {
 	w.Write(NewJsonError(http.StatusText(statusCode), message).Json())
 }
 
-func HttpHandler(connectionString string) func(w http.ResponseWriter, r *http.Request) {
+func HttpHandler(connectionString, queueName string) func(w http.ResponseWriter, r *http.Request) {
 	// Will have to re-evaluate if this ever gets more endpoints.
 	rmq := NewRMQ()
 	chanLock := sync.Mutex{}
 
+	if err := rmq.ConnectRMQ(connectionString); err != nil {
+		log.Fatal(err)
+	}
+
+	queue, err := rmq.PrepareQueue(queueName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
-		// I don't know; other validation too?
-		queueName := r.URL.Path[1:]
-
-		// The router should be handling this, so this is kind of silly.
-		pathComponents := strings.Split(queueName, "/")
-		if len(pathComponents) != 1 {
-			respondError(w, http.StatusBadRequest, "Queue name not valid")
-			return
-		}
-
-		if err := rmq.ConnectRMQ(connectionString); err != nil {
-			log.Fatal(err)
-		}
-
-		queue, err := rmq.PrepareQueue(queueName)
-		if err != nil {
-			log.Fatal(err)
-		}
-
 		body, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			log.Fatal(err)

@@ -49,6 +49,10 @@ publish/darwin-amd64:
 	mv $(BIN_NAME) $@
 
 
+.PHONY: server worker
+server worker: $(BIN_NAME)
+	$(BIN_NAME) $@ --queue test
+
 .PHONY: install isntall
 install isntall: $(INSTALLED_NAME)
 

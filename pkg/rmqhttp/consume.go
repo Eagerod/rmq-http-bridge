@@ -62,10 +62,10 @@ func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
 
 func ConsumeQueue(connectionString, queueName string, consumers int) {
 	forever := make(chan bool)
-	
+
 	for i := 0; i < consumers; i++ {
 		rmq := NewRMQ()
-		
+
 		if err := rmq.ConnectRMQ(connectionString); err != nil {
 			log.Fatal(err)
 		}

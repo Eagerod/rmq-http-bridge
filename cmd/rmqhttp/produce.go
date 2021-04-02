@@ -17,6 +17,8 @@ import (
 )
 
 func mkProduceCmd() *cobra.Command {
+	var queueName string
+
 	var cmd = &cobra.Command{
 		Use:   "server",
 		Short: "Receives HTTP POSTs on / and sends them to a queue.",
@@ -27,15 +29,21 @@ func mkProduceCmd() *cobra.Command {
 			}
 			log.Infof("Starting RMQ HTTP Bridge on port %s", port)
 
+			if queueName == "" {
+				return fmt.Errorf("Must provide a queue to target.")
+			}
+
 			bindInterface := fmt.Sprintf("0.0.0.0:%s", port)
 
 			connectionString := getConnectionString()
 			r := mux.NewRouter()
-			r.HandleFunc("/{queue}", rmqhttp.HttpHandler(connectionString)).Methods("POST")
+			r.HandleFunc("/", rmqhttp.HttpHandler(connectionString, queueName)).Methods("POST")
 			http.Handle("/", r)
 			return http.ListenAndServe(bindInterface, nil)
 		},
 	}
+
+	cmd.Flags().StringVarP(&queueName, "queue", "q", "", "Queue to write to")
 
 	return cmd
 }

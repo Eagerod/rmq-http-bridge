@@ -2,6 +2,7 @@ package rmqhttp
 
 import (
 	"fmt"
+	"runtime"
 )
 
 import (
@@ -31,7 +32,7 @@ func mkConsumeCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&queueName, "queue", "q", "", "Queue to consume")
-	cmd.Flags().IntVarP(&consumers, "consumers", "c", 1, "Number of consumers to run")
+	cmd.Flags().IntVarP(&consumers, "consumers", "c", runtime.NumCPU(), "Number of consumers to run")
 
 	return cmd
 }

@@ -3,6 +3,7 @@ package rmqhttp
 import (
 	"fmt"
 	"math"
+	"sync"
 )
 
 import (
@@ -14,13 +15,14 @@ const retriesHeaderName string = "x-remaining-retries"
 const attemptsHeaderName string = "x-attempt-number"
 
 type RMQ struct {
-	Connection *amqp.Connection
-	Channel    *amqp.Channel
-	QueueCache map[string]*amqp.Queue
+	Connection       *amqp.Connection
+	Channels         []*amqp.Channel
+	ChannelQueueLock sync.Mutex
+	QueueCache       map[string]*amqp.Queue
 }
 
 func NewRMQ() *RMQ {
-	rmq := RMQ{nil, nil, make(map[string]*amqp.Queue)}
+	rmq := RMQ{nil, nil, sync.Mutex{}, make(map[string]*amqp.Queue)}
 	return &rmq
 }
 
@@ -34,25 +36,36 @@ func (rmq *RMQ) ConnectRMQ(connectionString string) error {
 		rmq.Connection = conn
 	}
 
-	if rmq.Channel == nil {
-		ch, err := rmq.Connection.Channel()
-		if err != nil {
-			return err
-		}
+	return nil
+}
 
-		rmq.Channel = ch
+func (rmq *RMQ) LockChannel() (*amqp.Channel, error) {
+	rmq.ChannelQueueLock.Lock()
+	defer rmq.ChannelQueueLock.Unlock()
+	if len(rmq.Channels) == 0 {
+		return rmq.Connection.Channel()
 	}
 
-	return nil
+	channel := rmq.Channels[0]
+	rmq.Channels = rmq.Channels[1:]
+	return channel, nil
+}
+
+func (rmq *RMQ) UnlockChannel(channel *amqp.Channel) {
+	rmq.ChannelQueueLock.Lock()
+	defer rmq.ChannelQueueLock.Unlock()
+	rmq.Channels = append(rmq.Channels, channel)
 }
 
 // Create the queue we need, and make sure it has a dead letter queue set up.
 // This could eventually take in specific configurations that workers/server
 //   set up.
 func (rmq *RMQ) PrepareQueue(queueName string) (*amqp.Queue, error) {
-	if rmq.Channel == nil {
+	channel, err := rmq.LockChannel()
+	if err != nil {
 		return nil, fmt.Errorf("Cannot validate queue. RMQ not connected.")
 	}
+	defer rmq.UnlockChannel(channel)
 
 	if queue, ok := rmq.QueueCache[queueName]; ok {
 		return queue, nil
@@ -62,36 +75,36 @@ func (rmq *RMQ) PrepareQueue(queueName string) (*amqp.Queue, error) {
 	dlqName := fmt.Sprintf("%s-dead-letter-queue", queueName)
 	delayxName := fmt.Sprintf("%s-delay-delivery", queueName)
 
-	if err := rmq.Channel.ExchangeDeclare(dlxName, "fanout", true, false, false, false, nil); err != nil {
+	if err := channel.ExchangeDeclare(dlxName, "fanout", true, false, false, false, nil); err != nil {
 		return nil, err
 	}
 
-	if _, err := rmq.Channel.QueueDeclare(dlqName, true, false, false, false, nil); err != nil {
+	if _, err := channel.QueueDeclare(dlqName, true, false, false, false, nil); err != nil {
 		return nil, err
 	}
 
-	if err := rmq.Channel.QueueBind(dlqName, "", dlxName, false, nil); err != nil {
+	if err := channel.QueueBind(dlqName, "", dlxName, false, nil); err != nil {
 		return nil, err
 	}
 
 	args := amqp.Table{"x-dead-letter-exchange": dlxName}
-	queue, err := rmq.Channel.QueueDeclare(queueName, true, false, false, false, args)
+	queue, err := channel.QueueDeclare(queueName, true, false, false, false, args)
 	if err != nil {
 		return nil, err
 	}
 
 	// Because of how the delaying infrastructure works, create an exchange
 	//   for the queue, and bind the exchange to the delivery exchange.
-	if err := rmq.Channel.ExchangeDeclare(delayxName, "fanout", true, false, false, false, nil); err != nil {
+	if err := channel.ExchangeDeclare(delayxName, "fanout", true, false, false, false, nil); err != nil {
 		return nil, err
 	}
 
 	routingKey := fmt.Sprintf("#.%s", queueName)
-	if err := rmq.Channel.ExchangeBind(delayxName, routingKey, DelayInfrastructureDeliveryExchange, false, nil); err != nil {
+	if err := channel.ExchangeBind(delayxName, routingKey, DelayInfrastructureDeliveryExchange, false, nil); err != nil {
 		return nil, err
 	}
 
-	if err := rmq.Channel.QueueBind(queueName, "", delayxName, false, nil); err != nil {
+	if err := channel.QueueBind(queueName, "", delayxName, false, nil); err != nil {
 		return nil, err
 	}
 
@@ -139,7 +152,15 @@ func (rmq *RMQ) RequeueOrNack(queue *amqp.Queue, delivery *amqp.Delivery) {
 
 	// Publish this message back to the queue and Ack the one with the current
 	//   retry count.
-	err = rmq.Channel.Publish(
+	channel, err := rmq.LockChannel()
+	if err != nil {
+		log.Info("Failed to lock channel for requeuing delivery.")
+		delivery.Nack(false, true)
+		return
+	}
+	defer rmq.UnlockChannel(channel)
+
+	err = channel.Publish(
 		DelayRoutingExchange(),
 		DelayRoutingKey(queue.Name, int64(math.Pow(2, float64(attemptsInt)))),
 		false,

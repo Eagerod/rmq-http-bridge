@@ -62,19 +62,23 @@ func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
 func ConsumeQueue(connectionString, queueName string, consumers int) {
 	forever := make(chan bool)
 
+	rmq := NewRMQ()
+	if err := rmq.ConnectRMQ(connectionString); err != nil {
+		log.Fatal(err)
+	}
+
+	queue, err := rmq.PrepareQueue(queueName)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	for i := 0; i < consumers; i++ {
-		rmq := NewRMQ()
-
-		if err := rmq.ConnectRMQ(connectionString); err != nil {
-			log.Fatal(err)
-		}
-
-		queue, err := rmq.PrepareQueue(queueName)
+		channel, err := rmq.LockChannel()
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		msgs, err := rmq.Channel.Consume(
+		msgs, err := channel.Consume(
 			queue.Name,
 			"",
 			false,

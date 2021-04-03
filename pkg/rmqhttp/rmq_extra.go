@@ -69,15 +69,21 @@ func DestroyInfrastructure(connectionString string) error {
 		return err
 	}
 
+	channel, err := rmq.LockChannel()
+	if err != nil {
+		return err
+	}
+	defer rmq.UnlockChannel(channel)
+
 	// Delete in reverse order, because of how the bindings are chained.
 	for i := DelayInfrastructureBitCount - 1; i >= 0; i-- {
 		dirl := NewDelayInfrastructureRoutingLayer(i, DelayInfrastructureBitCount)
 
-		rmq.Channel.QueueDelete(dirl.ActiveRouteQueueName, false, false, false)
-		rmq.Channel.ExchangeDelete(dirl.ExchangeName, false, false)
+		channel.QueueDelete(dirl.ActiveRouteQueueName, false, false, false)
+		channel.ExchangeDelete(dirl.ExchangeName, false, false)
 	}
 
-	rmq.Channel.ExchangeDelete(DelayInfrastructureDeliveryExchange, false, false)
+	channel.ExchangeDelete(DelayInfrastructureDeliveryExchange, false, false)
 
 	return nil
 }
@@ -88,8 +94,14 @@ func DelayInfrastructure(connectionString string) error {
 		return err
 	}
 
+	channel, err := rmq.LockChannel()
+	if err != nil {
+		return err
+	}
+	defer rmq.UnlockChannel(channel)
+
 	// Create the delivery exchange first, then build every layer on top.
-	err := rmq.Channel.ExchangeDeclare(
+	err = channel.ExchangeDeclare(
 		DelayInfrastructureDeliveryExchange,
 		"topic",
 		true,
@@ -107,7 +119,7 @@ func DelayInfrastructure(connectionString string) error {
 
 		fmt.Printf("%+v\n", dirl)
 
-		err = rmq.Channel.ExchangeDeclare(
+		err = channel.ExchangeDeclare(
 			dirl.ExchangeName,
 			"topic",
 			true,
@@ -125,7 +137,7 @@ func DelayInfrastructure(connectionString string) error {
 			"x-dead-letter-exchange": dirl.DestinationExchangeName,
 			"x-message-ttl":          dirl.ActiveRouteTtlMs,
 		}
-		_, err = rmq.Channel.QueueDeclare(
+		_, err = channel.QueueDeclare(
 			dirl.ActiveRouteQueueName,
 			true,
 			false,
@@ -137,7 +149,7 @@ func DelayInfrastructure(connectionString string) error {
 			return err
 		}
 
-		err = rmq.Channel.QueueBind(
+		err = channel.QueueBind(
 			dirl.ActiveRouteQueueName,
 			dirl.ActiveRoutingKey,
 			dirl.ExchangeName,
@@ -148,7 +160,7 @@ func DelayInfrastructure(connectionString string) error {
 			return err
 		}
 
-		err = rmq.Channel.ExchangeBind(
+		err = channel.ExchangeBind(
 			dirl.DestinationExchangeName,
 			dirl.InactiveRoutingKey,
 			dirl.ExchangeName,

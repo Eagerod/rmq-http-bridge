@@ -3,7 +3,6 @@ package rmqhttp
 import (
 	"io/ioutil"
 	"net/http"
-	"sync"
 )
 
 import (
@@ -20,7 +19,6 @@ func respondError(w http.ResponseWriter, statusCode int, message string) {
 func HttpHandler(connectionString, queueName string) func(w http.ResponseWriter, r *http.Request) {
 	// Will have to re-evaluate if this ever gets more endpoints.
 	rmq := NewRMQ()
-	chanLock := sync.Mutex{}
 
 	if err := rmq.ConnectRMQ(connectionString); err != nil {
 		log.Fatal(err)
@@ -36,7 +34,7 @@ func HttpHandler(connectionString, queueName string) func(w http.ResponseWriter,
 		if err != nil {
 			log.Fatal(err)
 		}
-	
+
 		payload, err := NewRMQPayload(body)
 		if err != nil {
 			respondError(w, http.StatusBadRequest, err.Error())
@@ -50,9 +48,14 @@ func HttpHandler(connectionString, queueName string) func(w http.ResponseWriter,
 		// There may eventually be a need to rewrite the body; it can be
 		//   omitted if that ever happens.
 		headers := amqp.Table{retriesHeaderName: payload.Retries}
-		chanLock.Lock()
-		defer chanLock.Unlock()
-		err = rmq.Channel.Publish(
+
+		channel, err := rmq.LockChannel()
+		if err != nil {
+			respondError(w, http.StatusInternalServerError, "Failed to lock channel")
+			return
+		}
+		defer rmq.UnlockChannel(channel)
+		err = channel.Publish(
 			"",
 			queue.Name,
 			false,

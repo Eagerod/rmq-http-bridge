@@ -2,7 +2,6 @@ package rmqhttp
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -15,8 +14,8 @@ import (
 )
 
 func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
-	var payload rmqPayload
-	if err := json.Unmarshal(delivery.Body, &payload); err != nil {
+	payload, err := NewRMQPayload(delivery.Body)
+	if err != nil {
 		// This is unrecoverable; don't even obey the retry count.
 		// Ship this straight to the DLQ.
 		log.Error(err)

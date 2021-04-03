@@ -37,7 +37,11 @@ func mkProduceCmd() *cobra.Command {
 
 			connectionString := getConnectionString()
 			r := mux.NewRouter()
-			r.HandleFunc("/", rmqhttp.HttpHandler(connectionString, queueName)).Methods("POST")
+
+			hc := rmqhttp.NewHttpController()
+			hc.Connect(connectionString, queueName)
+
+			r.HandleFunc("/", hc.HttpHandler).Methods("POST")
 			http.Handle("/", r)
 			return http.ListenAndServe(bindInterface, nil)
 		},

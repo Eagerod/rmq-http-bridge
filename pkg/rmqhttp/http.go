@@ -10,67 +10,78 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func respondError(w http.ResponseWriter, statusCode int, message string) {
+type HttpController struct {
+	rmq   *RMQ
+	queue *amqp.Queue
+}
+
+func NewHttpController() *HttpController {
+	httpController := HttpController{NewRMQ(), nil}
+	return &httpController
+}
+
+func (hc *HttpController) Connect(connectionString, queueName string) error {
+	if err := hc.rmq.ConnectRMQ(connectionString); err != nil {
+		return err
+	}
+
+	queue, err := hc.rmq.PrepareQueue(queueName)
+	if err != nil {
+		return err
+	}
+
+	hc.queue = queue
+
+	return nil
+}
+
+func (hc *HttpController) respondError(w http.ResponseWriter, statusCode int, message string) {
 	w.WriteHeader(statusCode)
 	w.Header()["Content-Type"] = []string{"application/json"}
 	w.Write(NewJsonError(http.StatusText(statusCode), message).Json())
 }
 
-func HttpHandler(connectionString, queueName string) func(w http.ResponseWriter, r *http.Request) {
-	// Will have to re-evaluate if this ever gets more endpoints.
-	rmq := NewRMQ()
-
-	if err := rmq.ConnectRMQ(connectionString); err != nil {
-		log.Fatal(err)
-	}
-
-	queue, err := rmq.PrepareQueue(queueName)
+func (hc *HttpController) HttpHandler(w http.ResponseWriter, r *http.Request) {
+	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	return func(w http.ResponseWriter, r *http.Request) {
-		body, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		payload, err := NewRMQPayload(body)
-		if err != nil {
-			respondError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-
-		log.Debugf("Publishing to queue: %s; %d byte payload to: %s",
-			queueName, len(payload.Content), payload.Endpoint)
-
-		// Note: Retries stays in the body.
-		// There may eventually be a need to rewrite the body; it can be
-		//   omitted if that ever happens.
-		headers := amqp.Table{retriesHeaderName: payload.Retries}
-
-		channel, err := rmq.LockChannel()
-		if err != nil {
-			respondError(w, http.StatusInternalServerError, "Failed to lock channel")
-			return
-		}
-		defer rmq.UnlockChannel(channel)
-		err = channel.Publish(
-			"",
-			queue.Name,
-			false,
-			false,
-			amqp.Publishing{
-				ContentType: "application/json",
-				Body:        body,
-				Headers:     headers,
-			},
-		)
-
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		w.WriteHeader(http.StatusNoContent)
+	payload, err := NewRMQPayload(body)
+	if err != nil {
+		hc.respondError(w, http.StatusBadRequest, err.Error())
+		return
 	}
+
+	log.Debugf("Publishing to queue: %s; %d byte payload to: %s",
+		hc.queue.Name, len(payload.Content), payload.Endpoint)
+
+	// Note: Retries stays in the body.
+	// There may eventually be a need to rewrite the body; it can be
+	//   omitted if that ever happens.
+	headers := amqp.Table{retriesHeaderName: payload.Retries}
+
+	channel, err := hc.rmq.LockChannel()
+	if err != nil {
+		hc.respondError(w, http.StatusInternalServerError, "Failed to lock channel")
+		return
+	}
+	defer hc.rmq.UnlockChannel(channel)
+	err = channel.Publish(
+		"",
+		hc.queue.Name,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        body,
+			Headers:     headers,
+		},
+	)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

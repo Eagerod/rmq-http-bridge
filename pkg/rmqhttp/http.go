@@ -1,7 +1,6 @@
 package rmqhttp
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -37,20 +36,10 @@ func HttpHandler(connectionString, queueName string) func(w http.ResponseWriter,
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		payload := rmqPayload{Retries: 2}
-		if err := json.Unmarshal(body, &payload); err != nil {
-			respondError(w, http.StatusBadRequest, "Invalid JSON")
-			return
-		}
-
-		if payload.Endpoint == "" {
-			respondError(w, http.StatusBadRequest, "No endpoint given")
-			return
-		}
-
-		if payload.Retries < 0 || payload.Retries > 9 {
-			respondError(w, http.StatusBadRequest, "Retries not within (0, 9)")
+	
+		payload, err := NewRMQPayload(body)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 

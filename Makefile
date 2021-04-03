@@ -18,6 +18,7 @@ AUTOGEN_VERSION_FILENAME=$(BASE_CMD_DIR)/version-temp.go
 
 ALL_GO_DIRS = $(shell find . -iname "*.go" -exec dirname {} \; | sort | uniq)
 SRC := $(shell find . -iname "*.go" -and -not -name "*_test.go") $(AUTOGEN_VERSION_FILENAME)
+SRC_WITH_TESTS := $(shell find . -iname "*.go") $(AUTOGEN_VERSION_FILENAME)
 PUBLISH = publish/linux-amd64 publish/darwin-amd64
 
 .PHONY: all
@@ -70,13 +71,16 @@ interface-test: $(BIN_NAME)
 		$(GO) test -v main_test.go -run $$T; \
 	fi
 
-.PHONY: test-cover
-test-cover:
-	$(GO) test -v --coverprofile=coverage.out $(PACKAGE_PATHS)
+coverage.out: $(SRC_WITH_TESTS)
+	$(GO) test -v --coverprofile=coverage.out ./...
 
 .PHONY: coverage
-coverage: test-cover
+coverage: coverage.out
 	$(GO) tool cover -func=coverage.out
+
+.PHONY: pretty-coverage
+pretty-coverage: coverage.out
+	$(GO) tool cover -html=coverage.out
 
 .INTERMEDIATE: $(AUTOGEN_VERSION_FILENAME)
 $(AUTOGEN_VERSION_FILENAME):
@@ -84,10 +88,6 @@ $(AUTOGEN_VERSION_FILENAME):
 	build="$$(if [ "$$(git describe)" != "$$version" ]; then echo "-$$(git rev-parse --short HEAD)"; fi)" && \
 	dirty="$$(if [ ! -z "$$(git diff; git diff --cached)" ]; then echo "-dirty"; fi)" && \
 	printf "package rmqhttp\n\nconst VersionBuild = \"%s%s%s\"" $$version $$build $$dirty > $@
-
-.PHONY: pretty-coverage
-pretty-coverage: test-cover
-	$(GO) tool cover -html=coverage.out
 
 .PHONY: fmt
 fmt:

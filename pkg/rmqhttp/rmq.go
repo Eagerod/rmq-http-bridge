@@ -100,7 +100,7 @@ func (rmq *RMQ) PrepareQueue(queueName string) (*amqp.Queue, error) {
 	return &queue, nil
 }
 
-func RequeueOrNack(rmq *RMQ, queue *amqp.Queue, delivery *amqp.Delivery) {
+func (rmq *RMQ) RequeueOrNack(queue *amqp.Queue, delivery *amqp.Delivery) {
 	retries, ok := delivery.Headers[retriesHeaderName]
 	if !ok {
 		// I guess assume that the retries have been exhausted?

@@ -40,7 +40,7 @@ func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Warn(err)
-		RequeueOrNack(rmq, queue, &delivery)
+		rmq.RequeueOrNack(queue, &delivery)
 		return
 	}
 	defer resp.Body.Close()
@@ -53,7 +53,7 @@ func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		RequeueOrNack(rmq, queue, &delivery)
+		rmq.RequeueOrNack(queue, &delivery)
 		return
 	}
 

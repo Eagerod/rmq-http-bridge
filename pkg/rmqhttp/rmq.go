@@ -57,6 +57,10 @@ func (rmq *RMQ) UnlockChannel(channel *amqp.Channel) {
 	rmq.Channels = append(rmq.Channels, channel)
 }
 
+func DeadLetterQueueName(queue string) string {
+	return fmt.Sprintf("%s-dead-letter-queue", queue)
+}
+
 // Create the queue we need, and make sure it has a dead letter queue set up.
 // This could eventually take in specific configurations that workers/server
 //   set up.
@@ -72,7 +76,7 @@ func (rmq *RMQ) PrepareQueue(queueName string) (*amqp.Queue, error) {
 	}
 
 	dlxName := fmt.Sprintf("%s-dead-letter-exchange", queueName)
-	dlqName := fmt.Sprintf("%s-dead-letter-queue", queueName)
+	dlqName := DeadLetterQueueName(queueName)
 	delayxName := fmt.Sprintf("%s-delay-delivery", queueName)
 
 	if err := channel.ExchangeDeclare(dlxName, "fanout", true, false, false, false, nil); err != nil {

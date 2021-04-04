@@ -42,6 +42,7 @@ func mkProduceCmd() *cobra.Command {
 			hc.Connect(connectionString, queueName)
 
 			r.HandleFunc("/", hc.HttpHandler).Methods("POST")
+			r.HandleFunc("/health", hc.HealthHandler).Methods("GET")
 			http.Handle("/", r)
 			return http.ListenAndServe(bindInterface, nil)
 		},

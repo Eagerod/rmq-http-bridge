@@ -85,3 +85,25 @@ func (hc *HttpController) HttpHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (hc *HttpController) HealthHandler(w http.ResponseWriter, r *http.Request) {
+	channel, err := hc.rmq.LockChannel()
+	if err != nil {
+		hc.respondError(w, http.StatusInternalServerError, "Failed to lock channel")
+		return
+	}
+	defer hc.rmq.UnlockChannel(channel)
+
+	queue := DeadLetterQueueName(hc.queue.Name)
+
+	queueInspect, err := channel.QueueInspect(queue)
+	if err != nil {
+		hc.respondError(w, http.StatusInternalServerError, "Failed to inspect DLQ")
+		return
+	}
+
+	if queueInspect.Messages != 0 {
+		hc.respondError(w, http.StatusInternalServerError, "DLQ has items")
+		return
+	}
+}

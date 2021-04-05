@@ -1,6 +1,7 @@
 package rmqhttp
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 )
@@ -106,7 +107,8 @@ func (hc *HttpController) HealthHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if queueInspect.Messages != 0 {
-		hc.respondError(w, http.StatusInternalServerError, "DLQ has items")
+		msg := fmt.Sprintf("DLQ has %d items", queueInspect.Messages)
+		hc.respondError(w, http.StatusInternalServerError, msg)
 		return
 	}
 }

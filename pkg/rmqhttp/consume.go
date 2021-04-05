@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 )
 
 import (
@@ -36,6 +37,7 @@ func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
 		req.Header.Add(key, value)
 	}
 
+	requestStartTime := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Warn(err)
@@ -43,12 +45,13 @@ func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
 		return
 	}
 	defer resp.Body.Close()
+	requestDuration := time.Since(requestStartTime)
 
 	body, _ := ioutil.ReadAll(resp.Body)
 	if body == nil || len(body) == 0 {
-		log.Debugf("HTTP %d from %s", resp.StatusCode, payload.Endpoint)
+		log.Debugf("HTTP %d in %05dms from %s", resp.StatusCode, requestDuration.Milliseconds(), payload.Endpoint)
 	} else {
-		log.Debugf("HTTP %d from %s\n  %s", resp.StatusCode, payload.Endpoint, body)
+		log.Debugf("HTTP %d in %05dms from %s\n  %s", resp.StatusCode, requestDuration.Milliseconds(), payload.Endpoint, body)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {

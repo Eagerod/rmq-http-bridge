@@ -59,7 +59,10 @@ func (hc *HttpController) HttpHandler(w http.ResponseWriter, r *http.Request) {
 	// Note: Retries stays in the body.
 	// There may eventually be a need to rewrite the body; it can be
 	//   omitted if that ever happens.
-	headers := amqp.Table{retriesHeaderName: payload.Retries}
+	headers := amqp.Table{
+		retriesHeaderName:    payload.Retries,
+		retryDelayHeaderName: payload.Backoff,
+	}
 
 	channel, err := hc.rmq.LockChannel()
 	if err != nil {

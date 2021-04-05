@@ -16,16 +16,20 @@ import (
 // Headers:		 Map of headers to send to the server.
 //               If the server needs a content type to interpret the payload,
 //               include it here.
+// Backoff:      Minimum number of seconds for the first of the expoentially
+//               backing off retries.
+//               Defaults to 1 second.
 type rmqPayload struct {
 	Endpoint     string
 	Content      string
 	Base64Decode bool
 	Retries      int
 	Headers      map[string]string
+	Backoff      int
 }
 
 func NewRMQPayload(bytes []byte) (*rmqPayload, error) {
-	payload := rmqPayload{Retries: 2}
+	payload := rmqPayload{Retries: 2, Backoff: 1}
 	if err := json.Unmarshal(bytes, &payload); err != nil {
 		return nil, errors.New("Invalid JSON")
 	}

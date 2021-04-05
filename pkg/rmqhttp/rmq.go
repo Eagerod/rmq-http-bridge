@@ -12,6 +12,7 @@ import (
 )
 
 const retriesHeaderName string = "x-remaining-retries"
+const retryDelayHeaderName string = "x-retry-delay"
 const attemptsHeaderName string = "x-attempt-number"
 
 type RMQ struct {
@@ -126,11 +127,6 @@ func (rmq *RMQ) RequeueOrNack(queue *amqp.Queue, delivery *amqp.Delivery) {
 		return
 	}
 
-	attempts, ok := delivery.Headers[attemptsHeaderName]
-	if !ok {
-		attempts = 0
-	}
-
 	retriesInt, err := ToInt(retries)
 	if err != nil {
 		log.Error(err)
@@ -138,7 +134,24 @@ func (rmq *RMQ) RequeueOrNack(queue *amqp.Queue, delivery *amqp.Delivery) {
 		return
 	}
 
+	attempts, ok := delivery.Headers[attemptsHeaderName]
+	if !ok {
+		attempts = 0
+	}
+
 	attemptsInt, err := ToInt(attempts)
+	if err != nil {
+		log.Error(err)
+		delivery.Nack(false, false)
+		return
+	}
+
+	backoff, ok := delivery.Headers[retryDelayHeaderName]
+	if !ok {
+		backoff = 1
+	}
+
+	backoffInt, err := ToInt(backoff)
 	if err != nil {
 		log.Error(err)
 		delivery.Nack(false, false)
@@ -153,6 +166,7 @@ func (rmq *RMQ) RequeueOrNack(queue *amqp.Queue, delivery *amqp.Delivery) {
 
 	delivery.Headers[retriesHeaderName] = retriesInt - 1
 	delivery.Headers[attemptsHeaderName] = attemptsInt + 1
+	delivery.Headers[retryDelayHeaderName] = backoffInt
 
 	// Publish this message back to the queue and Ack the one with the current
 	//   retry count.
@@ -164,9 +178,10 @@ func (rmq *RMQ) RequeueOrNack(queue *amqp.Queue, delivery *amqp.Delivery) {
 	}
 	defer rmq.UnlockChannel(channel)
 
+	delay := int64(backoffInt) * int64(math.Pow(2, float64(attemptsInt)))
 	err = channel.Publish(
 		DelayRoutingExchange(),
-		DelayRoutingKey(queue.Name, int64(math.Pow(2, float64(attemptsInt)))),
+		DelayRoutingKey(queue.Name, delay),
 		false,
 		false,
 		amqp.Publishing{

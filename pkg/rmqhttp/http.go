@@ -45,7 +45,8 @@ func (hc *HttpController) respondError(w http.ResponseWriter, statusCode int, me
 func (hc *HttpController) HttpHandler(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Fatal(err)
+		hc.respondError(w, http.StatusBadRequest, err.Error())
+		return
 	}
 
 	payload, err := NewRMQPayload(body)

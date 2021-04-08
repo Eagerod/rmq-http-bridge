@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
 import (
@@ -43,6 +44,7 @@ func (hc *HttpController) respondError(w http.ResponseWriter, statusCode int, me
 }
 
 func (hc *HttpController) HttpHandler(w http.ResponseWriter, r *http.Request) {
+	requestStartTime := time.Now()
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		hc.respondError(w, http.StatusBadRequest, err.Error())
@@ -54,9 +56,6 @@ func (hc *HttpController) HttpHandler(w http.ResponseWriter, r *http.Request) {
 		hc.respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-
-	log.Debugf("Publishing to queue: %s; %d byte payload to: %s",
-		hc.queue.Name, len(payload.Content), payload.Endpoint)
 
 	// Note: Retries stays in the body.
 	// There may eventually be a need to rewrite the body; it can be
@@ -87,6 +86,10 @@ func (hc *HttpController) HttpHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	requestDuration := time.Since(requestStartTime)
+	log.Debugf("Published to queue: %s; %07d byte payload in %05dms to: %s",
+		hc.queue.Name, len(payload.Content), requestDuration.Milliseconds(), payload.Endpoint)
 
 	w.WriteHeader(http.StatusNoContent)
 }

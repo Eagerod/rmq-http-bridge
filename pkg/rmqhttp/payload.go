@@ -19,6 +19,8 @@ import (
 // Backoff:      Minimum number of seconds for the first of the expoentially
 //               backing off retries.
 //               Defaults to 1 second.
+// Timeout:      Number of seconds to wait before timing out the HTTP request.
+//               Defaults to 60 seconds; maximum 3600 seconds.
 type rmqPayload struct {
 	Endpoint     string
 	Content      string
@@ -26,10 +28,11 @@ type rmqPayload struct {
 	Retries      int
 	Headers      map[string]string
 	Backoff      int
+	Timeout      int
 }
 
 func NewRMQPayload(bytes []byte) (*rmqPayload, error) {
-	payload := rmqPayload{Retries: 2, Backoff: 1}
+	payload := rmqPayload{Retries: 2, Backoff: 1, Timeout: 60}
 	if err := json.Unmarshal(bytes, &payload); err != nil {
 		return nil, errors.New("Invalid JSON")
 	}

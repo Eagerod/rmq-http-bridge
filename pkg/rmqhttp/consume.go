@@ -29,7 +29,9 @@ func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
 		httpBodyReader = base64.NewDecoder(base64.StdEncoding, httpBodyReader)
 	}
 
-	client := &http.Client{}
+	client := &http.Client{
+		Timeout: time.Second * time.Duration(payload.Timeout),
+	}
 	req, _ := http.NewRequest("POST", payload.Endpoint, nil)
 	req.Body = ioutil.NopCloser(httpBodyReader)
 
@@ -40,7 +42,8 @@ func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
 	requestStartTime := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Warn(err)
+		requestDuration := time.Since(requestStartTime)
+		log.Debugf("HTTP fail in %05dms from %s\n  %s", requestDuration.Milliseconds(), payload.Endpoint, err.Error())
 		rmq.RequeueOrNack(queue, &delivery)
 		return
 	}

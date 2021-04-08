@@ -21,6 +21,8 @@ SRC := $(shell find . -iname "*.go" -and -not -name "*_test.go") $(AUTOGEN_VERSI
 SRC_WITH_TESTS := $(shell find . -iname "*.go") $(AUTOGEN_VERSION_FILENAME)
 PUBLISH = publish/linux-amd64 publish/darwin-amd64
 
+IMAGE_NAME = registry.internal.aleemhaji.com/rmq-http-bridge
+
 .PHONY: all
 all: $(BIN_NAME)
 
@@ -52,6 +54,14 @@ publish/darwin-amd64:
 .PHONY: server worker
 server worker: $(BIN_NAME)
 	$(BIN_NAME) $@ --queue test
+
+.PHONY: image
+image:
+	docker build . -t $(IMAGE_NAME)
+
+.PHONY: image-push
+image-push: image
+	docker push $(IMAGE_NAME)
 
 .PHONY: install isntall
 install isntall: $(INSTALLED_NAME)

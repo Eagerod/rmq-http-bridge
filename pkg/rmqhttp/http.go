@@ -1,6 +1,7 @@
 package rmqhttp
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -15,10 +16,15 @@ import (
 type HttpController struct {
 	rmq   *RMQ
 	queue *amqp.Queue
+
+	managementConnectionString string
 }
 
 func NewHttpController() *HttpController {
-	httpController := HttpController{NewRMQ(), nil}
+	httpController := HttpController{
+		rmq: NewRMQ(),
+		queue: nil,
+	}
 	return &httpController
 }
 
@@ -35,6 +41,10 @@ func (hc *HttpController) Connect(connectionString, queueName string) error {
 	hc.queue = queue
 
 	return nil
+}
+
+func (hc *HttpController) SetManagementConnectionString(mcs string) {
+	hc.managementConnectionString = mcs
 }
 
 func (hc *HttpController) respondError(w http.ResponseWriter, statusCode int, message string) {
@@ -115,4 +125,55 @@ func (hc *HttpController) HealthHandler(w http.ResponseWriter, r *http.Request) 
 		hc.respondError(w, http.StatusInternalServerError, msg)
 		return
 	}
+}
+
+func (hc *HttpController) StatsHandler(w http.ResponseWriter, r *http.Request) {
+	if hc.managementConnectionString == "" {
+		hc.respondError(w, http.StatusInternalServerError, "Management API not configured")
+		return
+	}
+
+	// Currently only supports default vhost.
+	fullManagementUrl := fmt.Sprintf("%sapi/queues/%%2F/%s", hc.managementConnectionString, hc.queue.Name)
+
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", fullManagementUrl, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	resp, err := client.Do(req)
+
+	if err != nil {
+		hc.respondError(w, http.StatusInternalServerError, "Failed to get data")
+		return
+	}
+	defer resp.Body.Close()
+
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	stats := rmqStats{}
+	if err := json.Unmarshal(body, &stats); err != nil {
+		hc.respondError(w, http.StatusInternalServerError, "Failed to parse response")
+		return
+	}
+
+	var statsRefined = struct {
+		Messages int
+		InRate   float32
+		OutRate  float32
+	} {
+		stats.Messages,
+		stats.MessageStats.PublishDetails.Rate,
+		stats.MessageStats.AckDetails.Rate,
+	}
+
+	aJson, err := json.Marshal(statsRefined)
+	if err != nil {
+		panic(err)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header()["Content-Type"] = []string{"application/json"}
+	w.Write(aJson)
 }

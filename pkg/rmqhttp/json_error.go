@@ -14,10 +14,10 @@ func NewJsonError(err, message string) *JsonError {
 }
 
 func (j *JsonError) Json() []byte {
-	json, err := json.Marshal(j)
+	aJson, err := json.Marshal(j)
 	if err != nil {
 		panic(err)
 	}
 
-	return json
+	return aJson
 }

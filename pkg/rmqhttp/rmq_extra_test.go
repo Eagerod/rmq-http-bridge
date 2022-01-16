@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDelatRoutingKey(t *testing.T) {
+func TestDelayRoutingKey(t *testing.T) {
 	var tests = []struct {
 		name   string
 		delay  int64

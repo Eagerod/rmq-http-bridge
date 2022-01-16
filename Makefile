@@ -57,7 +57,7 @@ server worker: $(BIN_NAME)
 
 .PHONY: image
 image:
-	docker build . -t $(IMAGE_NAME)
+	docker build . -t $(IMAGE_NAME):$$(cat VERSION)
 
 .PHONY: image-push
 image-push: image

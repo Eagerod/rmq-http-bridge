@@ -103,6 +103,8 @@ func ConsumeQueue(connectionString, queueName string, consumers int) {
 			for delivery := range msgs {
 				ConsumeOne(rmq, delivery, queue)
 			}
+
+			log.Errorf("Channel loop closed.")
 		}()
 	}
 

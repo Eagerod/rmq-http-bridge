@@ -17,3 +17,13 @@ func getConnectionString() string {
 
 	return s
 }
+
+func getManagementConnectionString() string {
+	s := os.Getenv("RABBITMQ_MANAGEMENT_CONNECTION_STRING")
+	if s == "" {
+		s = "http://guest:guest@rabbitmq:15672/"
+		log.Warn("Using default RMQ management connection string")
+	}
+
+	return s
+}

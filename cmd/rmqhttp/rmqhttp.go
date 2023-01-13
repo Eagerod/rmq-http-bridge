@@ -18,6 +18,7 @@ func Execute() {
 	rootCmd.AddCommand(mkConsumeCmd())
 	rootCmd.AddCommand(mkInitCmd())
 	rootCmd.AddCommand(mkDestroyCmd())
+	rootCmd.AddCommand(mkVersionCmd())
 
 	log.SetLevel(log.DebugLevel)
 

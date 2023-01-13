@@ -21,7 +21,7 @@ SRC := $(shell find . -iname "*.go" -and -not -name "*_test.go") $(AUTOGEN_VERSI
 SRC_WITH_TESTS := $(shell find . -iname "*.go") $(AUTOGEN_VERSION_FILENAME)
 PUBLISH = publish/linux-amd64 publish/darwin-amd64
 
-IMAGE_NAME = registry.internal.aleemhaji.com/rmq-http-bridge
+DOCKER_IMAGE_NAME = rmq-http-bridge
 
 .PHONY: all
 all: $(BIN_NAME)
@@ -55,13 +55,6 @@ publish/darwin-amd64:
 server worker: $(BIN_NAME)
 	$(BIN_NAME) $@ --queue test
 
-.PHONY: image
-image:
-	docker build . -t $(IMAGE_NAME):$$(cat VERSION)
-
-.PHONY: image-push
-image-push: image
-	docker push $(IMAGE_NAME)
 
 .PHONY: install isntall
 install isntall: $(INSTALLED_NAME)
@@ -98,10 +91,8 @@ pretty-coverage: coverage.out
 
 .INTERMEDIATE: $(AUTOGEN_VERSION_FILENAME)
 $(AUTOGEN_VERSION_FILENAME):
-	@version="v$$(cat VERSION)" && \
-	build="$$(if [ "$$(git describe)" != "$$version" ]; then echo "-$$(git rev-parse --short HEAD)"; fi)" && \
-	dirty="$$(if [ ! -z "$$(git diff; git diff --cached)" ]; then echo "-dirty"; fi)" && \
-	printf "package rmqhttp\n\nconst VersionBuild = \"%s%s%s\"" $$version $$build $$dirty > $@
+	@version="$${VERSION:-$$(git describe --dirty)}"; \
+	printf "package rmqhttp\n\nconst VersionBuild = \"%s\"" "$$version" > $@
 
 .PHONY: fmt
 fmt:
@@ -110,3 +101,9 @@ fmt:
 .PHONY: clean
 clean:
 	rm -rf coverage.out $(BUILD_DIR)
+
+
+.PHONY: container
+container:
+	@version="$$(git describe --dirty | sed 's/^v//')"; \
+	docker build . --build-arg VERSION="$$version" -t "registry.internal.aleemhaji.com/$(DOCKER_IMAGE_NAME):$$version"

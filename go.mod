@@ -9,4 +9,5 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/streadway/amqp v1.0.0
 	github.com/stretchr/testify v1.3.0
+	golang.org/x/sys v0.4.0 // indirect
 )

@@ -8,6 +8,8 @@ COPY go.mod go.sum ./
 #   build times
 RUN go mod download
 
+ARG VERSION UnspecifiedContainerVersion
+
 COPY . .
 
 # https://stackoverflow.com/a/62123648

@@ -40,7 +40,9 @@ func mkProduceCmd() *cobra.Command {
 
 			hc := rmqhttp.NewHttpController()
 			hc.SetManagementConnectionString(getManagementConnectionString())
-			hc.Connect(connectionString, queueName)
+			if err := hc.Connect(connectionString, queueName); err != nil {
+				return err
+			}
 
 			r.HandleFunc("/", hc.HttpHandler).Methods("POST")
 			r.HandleFunc("/health", hc.HealthHandler).Methods("GET")

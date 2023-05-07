@@ -32,7 +32,7 @@ func ToInt(anint interface{}) (int, error) {
 	case uint64:
 		i = int(t)
 	default:
-		return i, fmt.Errorf("Failed to convert %T to int.", anint)
+		return i, fmt.Errorf("failed to convert %T to int", anint)
 	}
 
 	return i, nil

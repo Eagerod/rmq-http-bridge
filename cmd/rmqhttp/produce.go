@@ -30,7 +30,7 @@ func mkProduceCmd() *cobra.Command {
 			log.Infof("Starting RMQ HTTP Bridge on port %s", port)
 
 			if queueName == "" {
-				return fmt.Errorf("Must provide a queue to target.")
+				return fmt.Errorf("must provide a queue to target")
 			}
 
 			bindInterface := fmt.Sprintf("0.0.0.0:%s", port)

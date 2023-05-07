@@ -38,15 +38,15 @@ type rmqPayload struct {
 func NewRMQPayload(bytes []byte) (*rmqPayload, error) {
 	payload := rmqPayload{Retries: 2, Backoff: 1, Timeout: 60}
 	if err := json.Unmarshal(bytes, &payload); err != nil {
-		return nil, errors.New("Invalid JSON")
+		return nil, errors.New("invalid JSON")
 	}
 
 	if payload.Endpoint == "" {
-		return nil, errors.New("No endpoint given")
+		return nil, errors.New("no endpoint given")
 	}
 
 	if payload.Retries < 0 || payload.Retries > 9 {
-		return nil, errors.New("Retries not within (0, 9)")
+		return nil, errors.New("retries not within (0, 9)")
 	}
 
 	return &payload, nil

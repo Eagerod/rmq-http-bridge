@@ -51,7 +51,7 @@ func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
 
 	body, _ := ioutil.ReadAll(resp.Body)
 	requestDuration := time.Since(requestStartTime)
-	if body == nil || len(body) == 0 {
+	if len(body) == 0 {
 		log.Debugf("HTTP %d in %05dms from %s", resp.StatusCode, requestDuration.Milliseconds(), payload.Endpoint)
 	} else {
 		log.Debugf("HTTP %d in %05dms from %s\n  %s", resp.StatusCode, requestDuration.Milliseconds(), payload.Endpoint, body)

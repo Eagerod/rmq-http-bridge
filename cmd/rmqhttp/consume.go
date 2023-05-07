@@ -22,7 +22,7 @@ func mkConsumeCmd() *cobra.Command {
 		Short: "Pulls items off a RMQ queue, and sends them to their HTTP destination.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if queueName == "" {
-				return fmt.Errorf("Must provide queue name to consume")
+				return fmt.Errorf("must provide queue name to consume")
 			}
 
 			connectionString := getConnectionString()

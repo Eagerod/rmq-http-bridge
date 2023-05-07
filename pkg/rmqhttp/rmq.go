@@ -68,7 +68,7 @@ func DeadLetterQueueName(queue string) string {
 func (rmq *RMQ) PrepareQueue(queueName string) (*amqp.Queue, error) {
 	channel, err := rmq.LockChannel()
 	if err != nil {
-		return nil, fmt.Errorf("Cannot validate queue. RMQ not connected.")
+		return nil, fmt.Errorf("cannot validate queue. RMQ not connected")
 	}
 	defer rmq.UnlockChannel(channel)
 

@@ -193,7 +193,7 @@ func DelayRoutingKey(destQueue string, delaySeconds int64) string {
 		fmt.Fprintf(&outStringBuilder, "%s.", string(binaryRep[i]))
 	}
 
-	fmt.Fprintf(&outStringBuilder, destQueue)
+	fmt.Fprint(&outStringBuilder, destQueue)
 
 	return outStringBuilder.String()
 }

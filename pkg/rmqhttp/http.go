@@ -3,7 +3,7 @@ package rmqhttp
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 )
@@ -55,7 +55,7 @@ func (hc *HttpController) respondError(w http.ResponseWriter, statusCode int, me
 
 func (hc *HttpController) HttpHandler(w http.ResponseWriter, r *http.Request) {
 	requestStartTime := time.Now()
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		hc.respondError(w, http.StatusBadRequest, err.Error())
 		return
@@ -150,7 +150,7 @@ func (hc *HttpController) StatsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 
 	stats := rmqStats{}
 	if err := json.Unmarshal(body, &stats); err != nil {

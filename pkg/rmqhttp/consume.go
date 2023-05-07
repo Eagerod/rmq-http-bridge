@@ -3,7 +3,6 @@ package rmqhttp
 import (
 	"encoding/base64"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
@@ -33,7 +32,7 @@ func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
 		Timeout: time.Second * time.Duration(payload.Timeout),
 	}
 	req, _ := http.NewRequest("POST", payload.Endpoint, nil)
-	req.Body = ioutil.NopCloser(httpBodyReader)
+	req.Body = io.NopCloser(httpBodyReader)
 
 	for key, value := range payload.Headers {
 		req.Header.Add(key, value)
@@ -49,7 +48,7 @@ func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
 	}
 	defer resp.Body.Close()
 
-	body, _ := ioutil.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 	requestDuration := time.Since(requestStartTime)
 	if len(body) == 0 {
 		log.Debugf("HTTP %d in %05dms from %s", resp.StatusCode, requestDuration.Milliseconds(), payload.Endpoint)

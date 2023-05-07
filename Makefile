@@ -14,11 +14,9 @@ CMD_PACKAGE_DIR := $(BASE_CMD_DIR) $(dir $(wildcard $(BASE_CMD_DIR)/*/))
 PKG_PACKAGE_DIR := $(dir $(wildcard $(BASE_PKG_DIR)))
 PACKAGE_PATHS := $(CMD_PACKAGE_DIR) $(PKG_PACKAGE_DIR)
 
-AUTOGEN_VERSION_FILENAME=$(BASE_CMD_DIR)/version-temp.go
-
 ALL_GO_DIRS = $(shell find . -iname "*.go" -exec dirname {} \; | sort | uniq)
-SRC := $(shell find . -iname "*.go" -and -not -name "*_test.go") $(AUTOGEN_VERSION_FILENAME)
-SRC_WITH_TESTS := $(shell find . -iname "*.go") $(AUTOGEN_VERSION_FILENAME)
+SRC := $(shell find . -iname "*.go" -and -not -name "*_test.go")
+SRC_WITH_TESTS := $(shell find . -iname "*.go")
 PUBLISH = publish/linux-amd64 publish/darwin-amd64
 
 DOCKER_IMAGE_NAME = rmq-http-bridge
@@ -28,7 +26,8 @@ all: $(BIN_NAME)
 
 $(BIN_NAME): $(SRC)
 	@mkdir -p $(BUILD_DIR)
-	$(GO) build -o $(BIN_NAME) $(MAIN_FILE)
+	version="$${VERSION:-$$(git describe --dirty)}"; \
+	$(GO) build -o $(BIN_NAME) -ldflags="-X github.com/Eagerod/rmqhttp/cmd/rmqhttp.VersionBuild=$$version" $(MAIN_FILE)
 
 
 .PHONY: publish
@@ -88,11 +87,6 @@ coverage: coverage.out
 .PHONY: pretty-coverage
 pretty-coverage: coverage.out
 	$(GO) tool cover -html=coverage.out
-
-.INTERMEDIATE: $(AUTOGEN_VERSION_FILENAME)
-$(AUTOGEN_VERSION_FILENAME):
-	@version="$${VERSION:-$$(git describe --dirty)}"; \
-	printf "package rmqhttp\n\nconst VersionBuild = \"%s\"" "$$version" > $@
 
 .PHONY: fmt
 fmt:

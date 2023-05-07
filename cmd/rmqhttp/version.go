@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var VersionBuild = "unstable-dev"
+
 func mkVersionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",

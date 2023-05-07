@@ -22,7 +22,7 @@ type HttpController struct {
 
 func NewHttpController() *HttpController {
 	httpController := HttpController{
-		rmq: NewRMQ(),
+		rmq:   NewRMQ(),
 		queue: nil,
 	}
 	return &httpController
@@ -162,7 +162,7 @@ func (hc *HttpController) StatsHandler(w http.ResponseWriter, r *http.Request) {
 		Messages int
 		InRate   float32
 		OutRate  float32
-	} {
+	}{
 		stats.Messages,
 		stats.MessageStats.PublishDetails.Rate,
 		stats.MessageStats.AckDetails.Rate,

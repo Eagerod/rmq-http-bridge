@@ -7,6 +7,8 @@ EXECUTABLE := rmqhttp
 BIN_NAME := $(BUILD_DIR)/$(EXECUTABLE)
 INSTALLED_NAME := /usr/local/bin/$(EXECUTABLE)
 
+COVERAGE_FILE=./coverage.out
+
 BASE_CMD_DIR := cmd/rmqhttp
 BASE_PKG_DIR := pkg
 
@@ -14,10 +16,14 @@ CMD_PACKAGE_DIR := $(BASE_CMD_DIR) $(dir $(wildcard $(BASE_CMD_DIR)/*/))
 PKG_PACKAGE_DIR := $(dir $(wildcard $(BASE_PKG_DIR)))
 PACKAGE_PATHS := $(CMD_PACKAGE_DIR) $(PKG_PACKAGE_DIR)
 
-ALL_GO_DIRS = $(shell find . -iname "*.go" -exec dirname {} \; | sort | uniq)
 SRC := $(shell find . -iname "*.go" -and -not -name "*_test.go")
 SRC_WITH_TESTS := $(shell find . -iname "*.go")
-PUBLISH = publish/linux-amd64 publish/darwin-amd64
+
+PUBLISH_DIR=publish
+PUBLISH := \
+	$(PUBLISH_DIR)/linux-amd64 \
+	$(PUBLISH_DIR)/darwin-amd64 \
+	$(PUBLISH_DIR)/darwin-arm64
 
 DOCKER_IMAGE_NAME = rmq-http-bridge
 
@@ -30,23 +36,19 @@ $(BIN_NAME): $(SRC)
 	$(GO) build -o $(BIN_NAME) -ldflags="-X github.com/Eagerod/rmqhttp/cmd/rmqhttp.VersionBuild=$$version" $(MAIN_FILE)
 
 
+
 .PHONY: publish
 publish: $(PUBLISH)
 
-.PHONY: publish/linux-amd64
-publish/linux-amd64:
-	# Force build; don't let existing versions interfere.
+# Publish targets are treated as phony to force rebuilds.
+.PHONY: $(PUBLISH)
+$(PUBLISH):
+	mkdir -p "$(@D)"
 	rm -f $(BIN_NAME)
-	GOOS=linux GOARCH=amd64 $(MAKE) $(BIN_NAME)
-	mkdir -p $$(dirname "$@")
-	mv $(BIN_NAME) $@
-
-.PHONY: publish/darwin-amd64
-publish/darwin-amd64:
-	# Force build; don't let existing versions interfere.
-	rm -f $(BIN_NAME)
-	GOOS=darwin GOARCH=amd64 $(MAKE) $(BIN_NAME)
-	mkdir -p $$(dirname "$@")
+	GOOS_GOARCH="$$(basename $@)" \
+	GOOS="$$(cut -d '-' -f 1 <<< "$$GOOS_GOARCH")" \
+	GOARCH="$$(cut -d '-' -f 2 <<< "$$GOOS_GOARCH")" \
+		$(MAKE) $(BIN_NAME)
 	mv $(BIN_NAME) $@
 
 
@@ -63,6 +65,8 @@ $(INSTALLED_NAME): $(BIN_NAME)
 
 .PHONY: test
 test:
+	@$(GO) vet ./...
+	@staticcheck ./...
 	@if [ -z $$T ]; then \
 		$(GO) test -v ./...; \
 	else \
@@ -77,24 +81,24 @@ interface-test: $(BIN_NAME)
 		$(GO) test -v main_test.go -run $$T; \
 	fi
 
-coverage.out: $(SRC_WITH_TESTS)
-	$(GO) test -v --coverprofile=coverage.out ./...
+$(COVERAGE_FILE): $(SRC_WITH_TESTS)
+	$(GO) test -v --coverprofile=$(COVERAGE_FILE) ./...
 
 .PHONY: coverage
-coverage: coverage.out
-	$(GO) tool cover -func=coverage.out
+coverage: $(COVERAGE_FILE)
+	$(GO) tool cover -func=$(COVERAGE_FILE)
 
 .PHONY: pretty-coverage
-pretty-coverage: coverage.out
-	$(GO) tool cover -html=coverage.out
+pretty-coverage: $(COVERAGE_FILE)
+	$(GO) tool cover -html=$(COVERAGE_FILE)
 
 .PHONY: fmt
 fmt:
-	@$(GO) fmt $(ALL_GO_DIRS)
+	@$(GO) fmt ./...
 
 .PHONY: clean
 clean:
-	rm -rf coverage.out $(BUILD_DIR)
+	rm -rf $(COVERAGE_FILE) $(BUILD_DIR)
 
 
 .PHONY: container

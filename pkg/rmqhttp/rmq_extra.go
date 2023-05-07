@@ -12,7 +12,7 @@ import (
 )
 
 // Implements this, but without the transport.
-//   https://docs.particular.net/transports/rabbitmq/delayed-delivery
+// https://docs.particular.net/transports/rabbitmq/delayed-delivery
 const DelayInfrastructureBitCount = 28
 const DelayInfrastructureDeliveryExchange = "delay-infra-deliver"
 

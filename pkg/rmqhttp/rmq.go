@@ -64,7 +64,7 @@ func DeadLetterQueueName(queue string) string {
 
 // Create the queue we need, and make sure it has a dead letter queue set up.
 // This could eventually take in specific configurations that workers/server
-//   set up.
+// set up.
 func (rmq *RMQ) PrepareQueue(queueName string) (*amqp.Queue, error) {
 	channel, err := rmq.LockChannel()
 	if err != nil {

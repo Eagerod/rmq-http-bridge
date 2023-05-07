@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"path"
 	"time"
 )
 
@@ -17,7 +19,7 @@ type HttpController struct {
 	rmq   *RMQ
 	queue *amqp.Queue
 
-	managementConnectionString string
+	managementUrl *url.URL
 }
 
 func NewHttpController() *HttpController {
@@ -44,7 +46,12 @@ func (hc *HttpController) Connect(connectionString, queueName string) error {
 }
 
 func (hc *HttpController) SetManagementConnectionString(mcs string) {
-	hc.managementConnectionString = mcs
+	u, err := url.Parse(mcs)
+	if err != nil {
+		panic(err)
+	}
+
+	hc.managementUrl = u
 }
 
 func (hc *HttpController) respondError(w http.ResponseWriter, statusCode int, message string) {
@@ -77,6 +84,7 @@ func (hc *HttpController) HttpHandler(w http.ResponseWriter, r *http.Request) {
 
 	channel, err := hc.rmq.LockChannel()
 	if err != nil {
+		log.Error(err)
 		hc.respondError(w, http.StatusInternalServerError, "Failed to lock channel")
 		return
 	}
@@ -116,6 +124,7 @@ func (hc *HttpController) HealthHandler(w http.ResponseWriter, r *http.Request) 
 
 	queueInspect, err := channel.QueueInspect(queue)
 	if err != nil {
+		log.Error(err)
 		hc.respondError(w, http.StatusInternalServerError, "Failed to inspect DLQ")
 		return
 	}
@@ -128,13 +137,16 @@ func (hc *HttpController) HealthHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (hc *HttpController) StatsHandler(w http.ResponseWriter, r *http.Request) {
-	if hc.managementConnectionString == "" {
+	if hc.managementUrl == nil {
+		log.Error("Management API not configured")
 		hc.respondError(w, http.StatusInternalServerError, "Management API not configured")
 		return
 	}
 
 	// Currently only supports default vhost.
-	fullManagementUrl := fmt.Sprintf("%sapi/queues/%%2F/%s", hc.managementConnectionString, hc.queue.Name)
+	u, _ := url.Parse(hc.managementUrl.String())
+	u.Path = path.Join(u.Path, "api", "queues", "%%2F", hc.queue.Name)
+	fullManagementUrl := u.String()
 
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", fullManagementUrl, nil)
@@ -143,8 +155,8 @@ func (hc *HttpController) StatsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp, err := client.Do(req)
-
 	if err != nil {
+		log.Error(err)
 		hc.respondError(w, http.StatusInternalServerError, "Failed to get data")
 		return
 	}
@@ -154,6 +166,7 @@ func (hc *HttpController) StatsHandler(w http.ResponseWriter, r *http.Request) {
 
 	stats := rmqStats{}
 	if err := json.Unmarshal(body, &stats); err != nil {
+		log.Error(err)
 		hc.respondError(w, http.StatusInternalServerError, "Failed to parse response")
 		return
 	}

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -65,8 +66,6 @@ func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
 }
 
 func ConsumeQueue(connectionString, queueName string, consumers int) {
-	forever := make(chan bool)
-
 	rmq := NewRMQ()
 	if err := rmq.ConnectRMQ(connectionString); err != nil {
 		log.Fatal(err)
@@ -77,6 +76,7 @@ func ConsumeQueue(connectionString, queueName string, consumers int) {
 		log.Fatal(err)
 	}
 
+	wg := sync.WaitGroup{}
 	for i := 0; i < consumers; i++ {
 		channel, err := rmq.LockChannel()
 		if err != nil {
@@ -98,15 +98,17 @@ func ConsumeQueue(connectionString, queueName string, consumers int) {
 
 		log.Infof("Starting consumer for queue %s", queue.Name)
 
+		wg.Add(1)
 		go func() {
 			for delivery := range msgs {
 				ConsumeOne(rmq, delivery, queue)
 			}
 
 			log.Errorf("Channel loop closed.")
+			wg.Done()
 		}()
 	}
 
 	log.Infof("Waiting for messages from queue. To exit press CTRL+C")
-	<-forever
+	wg.Wait()
 }

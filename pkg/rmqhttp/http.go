@@ -15,6 +15,10 @@ import (
 	"github.com/streadway/amqp"
 )
 
+import (
+	"github.com/Eagerod/rmqhttp/pkg/types"
+)
+
 type HttpController struct {
 	rmq   *RMQ
 	queue *amqp.Queue
@@ -68,7 +72,7 @@ func (hc *HttpController) HttpHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload, err := NewRMQPayload(body)
+	payload, err := types.NewTaskPayload(body)
 	if err != nil {
 		hc.respondError(w, http.StatusBadRequest, err.Error())
 		return

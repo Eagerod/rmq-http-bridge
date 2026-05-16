@@ -14,8 +14,12 @@ import (
 	"github.com/streadway/amqp"
 )
 
+import (
+	"github.com/Eagerod/rmqhttp/pkg/types"
+)
+
 func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {
-	payload, err := NewRMQPayload(delivery.Body)
+	payload, err := types.NewTaskPayload(delivery.Body)
 	if err != nil {
 		// This is unrecoverable; don't even obey the retry count.
 		// Ship this straight to the DLQ.

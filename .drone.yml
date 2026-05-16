@@ -1,0 +1,63 @@
+kind: pipeline
+type: kubernetes
+name: default
+
+image_pull_secrets:
+  - dockerconfig
+
+
+steps:
+  - name: prepare-mc-binary
+    image: registry.internal.aleemhaji.com/golang:1.26.0
+    commands:
+      - mkdir -p bin
+      - curl -fsS https://build.internal.aleemhaji.com/bin/mc/RELEASE.2023-09-29T16-41-22Z/mc -o bin/mc
+      - chmod +x bin/mc
+
+  - name: lint
+    image: registry.internal.aleemhaji.com/golang:1.26.0
+    commands:
+      - GOPROXY="https://build.internal.aleemhaji.com/go,direct" go mod download all
+      - GOPROXY="https://build.internal.aleemhaji.com/go,direct" go install honnef.co/go/tools/cmd/staticcheck@v0.6.1
+      - make lint
+      - ./bin/mc alias set "build" https://garage.internal.aleemhaji.com "$BUILD_SECRET_KEY_ID" "$BUILD_SECRET_KEY" --api "S3v4" --path "auto"
+      - find "/go/pkg/mod/cache/download" -type f | sed 's?/go/pkg/mod/cache/download/??' | sort > local.txt
+      #                                            timestamp space     filesize     space      storage class space     filename
+      - ./bin/mc ls -r build/build/go | sed -n 's/^\[[^][]*][[:blank:]]*[^[:blank:]]*[[:blank:]][^[:blank:]]*[[:blank:]]\(.*\)/\\\\1/p' | sort > remote.txt
+      - |
+        diff local.txt remote.txt | \
+          grep '^<' | while read -r line; do
+            fn="$(echo -n "$line" | sed 's/< //')"
+            ./bin/mc cp "/go/pkg/mod/cache/download/$fn" "build/build/go/$fn"
+          done
+      # --skip-errors is supposed to be the right way to do this, but was introduced in a newer mc build
+      # - ./bin/mc mirror --skip-errors /go/pkg/mod/cache/download build/build/go
+    environment:
+      BUILD_SECRET_KEY_ID:
+        from_secret: build_secret_key_id
+      BUILD_SECRET_KEY:
+        from_secret: build_secret_key
+
+  - name: test
+    image: registry.internal.aleemhaji.com/golang:1.26.0
+    commands:
+      # All dependencies should be cached from having run the lint step.
+      - GOPROXY="https://build.internal.aleemhaji.com/go" go mod download all
+      - make test
+    environment:
+      GOOS: linux
+      GOARCH: amd64
+      BUILD_SECRET_KEY_ID:
+        from_secret: build_secret_key_id
+      BUILD_SECRET_KEY:
+        from_secret: build_secret_key
+
+  - name: notify
+    image: plugins/slack
+    settings:
+      webhook:
+        from_secret: slack_hook
+      channel: ci
+    when:
+      status:
+        - failure

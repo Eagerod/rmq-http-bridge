@@ -27,8 +27,10 @@ PUBLISH := \
 
 DOCKER_IMAGE_NAME = rmq-http-bridge
 
+
 .PHONY: all
 all: $(BIN_NAME)
+
 
 $(BIN_NAME): $(SRC)
 	@mkdir -p $(BUILD_DIR)
@@ -36,9 +38,9 @@ $(BIN_NAME): $(SRC)
 	$(GO) build -o $(BIN_NAME) -ldflags="-X github.com/Eagerod/rmqhttp/cmd/rmqhttp.VersionBuild=$$version" $(MAIN_FILE)
 
 
-
 .PHONY: publish
 publish: $(PUBLISH)
+
 
 # Publish targets are treated as phony to force rebuilds.
 .PHONY: $(PUBLISH)
@@ -60,18 +62,19 @@ server worker: $(BIN_NAME)
 .PHONY: install isntall
 install isntall: $(INSTALLED_NAME)
 
+
 $(INSTALLED_NAME): $(BIN_NAME)
 	cp $(BIN_NAME) $(INSTALLED_NAME)
 
+
 .PHONY: test
 test:
-	@$(GO) vet ./...
-	@staticcheck ./...
 	@if [ -z $$T ]; then \
 		$(GO) test -v ./...; \
 	else \
 		$(GO) test -v ./... -run $$T; \
 	fi
+
 
 .PHONY: interface-test
 interface-test: $(BIN_NAME)
@@ -81,20 +84,32 @@ interface-test: $(BIN_NAME)
 		$(GO) test -v main_test.go -run $$T; \
 	fi
 
+
 $(COVERAGE_FILE): $(SRC_WITH_TESTS)
 	$(GO) test -v --coverprofile=$(COVERAGE_FILE) ./...
+
 
 .PHONY: coverage
 coverage: $(COVERAGE_FILE)
 	$(GO) tool cover -func=$(COVERAGE_FILE)
 
+
 .PHONY: pretty-coverage
 pretty-coverage: $(COVERAGE_FILE)
 	$(GO) tool cover -html=$(COVERAGE_FILE)
 
+
 .PHONY: fmt
 fmt:
 	@$(GO) fmt ./...
+
+
+.PHONY: lint
+lint:
+	@gofmt -l . | grep . && echo "go fmt wants to make changes; run go fmt and fix linting errors." && exit 1 || exit 0
+	@$(GO) vet ./...
+	@staticcheck ./...
+
 
 .PHONY: clean
 clean:

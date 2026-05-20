@@ -25,7 +25,7 @@ import (
 //
 // Timeout:      Number of seconds to wait before timing out the HTTP request.
 // Defaults to 60 seconds; maximum 3600 seconds.
-type taskPayload struct {
+type TaskPayload struct {
 	Endpoint     string
 	Content      string
 	Base64Decode bool
@@ -35,8 +35,8 @@ type taskPayload struct {
 	Timeout      int
 }
 
-func NewTaskPayload(bytes []byte) (*taskPayload, error) {
-	payload := taskPayload{Retries: 2, Backoff: 1, Timeout: 60}
+func NewTaskPayload(bytes []byte) (*TaskPayload, error) {
+	payload := TaskPayload{Retries: 2, Backoff: 1, Timeout: 60}
 	if err := json.Unmarshal(bytes, &payload); err != nil {
 		return nil, errors.New("invalid JSON")
 	}

@@ -15,7 +15,7 @@ import (
 )
 
 import (
-	"github.com/Eagerod/rmqhttp/pkg/types"
+	"github.com/eagerod/rmq-http-bridge/pkg/types"
 )
 
 func ConsumeOne(rmq *RMQ, delivery amqp.Delivery, queue *amqp.Queue) {

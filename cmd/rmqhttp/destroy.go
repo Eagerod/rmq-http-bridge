@@ -5,7 +5,7 @@ import (
 )
 
 import (
-	"github.com/Eagerod/rmqhttp/pkg/rmqhttp"
+	"github.com/eagerod/rmq-http-bridge/pkg/rmqhttp"
 )
 
 func mkDestroyCmd() *cobra.Command {

@@ -1,6 +1,6 @@
 package main
 
-import "github.com/Eagerod/rmqhttp/cmd/rmqhttp"
+import "github.com/eagerod/rmq-http-bridge/cmd/rmqhttp"
 
 func main() {
 	rmqhttp.Execute()

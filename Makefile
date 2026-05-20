@@ -35,7 +35,7 @@ all: $(BIN_NAME)
 $(BIN_NAME): $(SRC)
 	@mkdir -p $(BUILD_DIR)
 	version="$${VERSION:-$$(git describe --dirty)}"; \
-	$(GO) build -o $(BIN_NAME) -ldflags="-X github.com/Eagerod/rmqhttp/cmd/rmqhttp.VersionBuild=$$version" $(MAIN_FILE)
+	$(GO) build -o $(BIN_NAME) -ldflags="-X github.com/eagerod/rmq-http-bridge/cmd/rmqhttp.VersionBuild=$$version" $(MAIN_FILE)
 
 
 .PHONY: publish

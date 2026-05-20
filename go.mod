@@ -1,4 +1,4 @@
-module github.com/Eagerod/rmqhttp
+module github.com/eagerod/rmq-http-bridge
 
 go 1.19
 

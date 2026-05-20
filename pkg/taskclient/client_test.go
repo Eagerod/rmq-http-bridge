@@ -9,7 +9,7 @@ import (
 )
 
 import (
-	"github.com/Eagerod/rmqhttp/pkg/types"
+	"github.com/eagerod/rmq-http-bridge/pkg/types"
 )
 
 func TestClientSend(t *testing.T) {

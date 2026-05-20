@@ -11,7 +11,7 @@ import (
 )
 
 import (
-	"github.com/Eagerod/rmqhttp/pkg/types"
+	"github.com/eagerod/rmq-http-bridge/pkg/types"
 )
 
 type Client struct {

@@ -16,7 +16,7 @@ COPY . .
 RUN CGO_ENABLED=0 make
 
 
-FROM alpine AS runner
+FROM alpine:3.23.4 AS runner
 
 COPY --from=builder /app/build/rmqhttp /usr/bin/rmqhttp
 
